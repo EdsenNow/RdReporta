@@ -34,20 +34,85 @@ class _PopularScreenState extends State<PopularScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = context.isDarkMode;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Popular esta Semana'),
+        title: Text(
+          'Popular esta Semana',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: context.loveColor,
+          ),
+        ),
+        actions: [
+          Container(
+            margin: const EdgeInsets.only(right: 14),
+            decoration: BoxDecoration(
+              color: context.surfaceColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: context.loveColor.withValues(alpha: 0.6),
+                width: 1.5,
+              ),
+            ),
+            child: IconButton(
+              icon: Icon(
+                isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                color: context.loveColor,
+                size: 20,
+              ),
+              tooltip: isDark ? 'Cambiar a Rosé Pine Dawn (Claro)' : 'Cambiar a Rosé Pine (Oscuro)',
+              onPressed: () {
+                AppTheme.toggleTheme();
+              },
+            ),
+          ),
+        ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: CircularProgressIndicator(color: context.loveColor, strokeWidth: 2.5))
           : _posts.isEmpty
-              ? const Center(
-                  child: Text('No hay publicaciones destacadas esta semana todavía.'),
+              ? Center(
+                  child: Container(
+                    margin: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: context.surfaceColor,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isDark ? const Color(0x1AFFFFFF) : context.borderColor,
+                        width: 1.2,
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.local_fire_department_outlined, size: 48, color: context.loveColor),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Tendencias en curso',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: context.textPrimaryColor,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Aún no hay publicaciones con alta interacción ciudadana esta semana.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 13, color: context.subtleColor),
+                        ),
+                      ],
+                    ),
+                  ),
                 )
               : RefreshIndicator(
+                  color: context.loveColor,
                   onRefresh: _loadPopular,
                   child: ListView.builder(
-                    padding: const EdgeInsets.only(top: 8, bottom: 80),
+                    padding: const EdgeInsets.only(top: 8, bottom: 90),
                     itemCount: _posts.length,
                     itemBuilder: (context, index) => IncidentCard(post: _posts[index]),
                   ),
@@ -121,8 +186,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mi Perfil Ciudadano'),
+        title: Text(
+          'Mi Perfil Ciudadano',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: context.loveColor,
+          ),
+        ),
         actions: [
+          Container(
+            margin: const EdgeInsets.only(right: 6),
+            decoration: BoxDecoration(
+              color: context.surfaceColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: context.loveColor.withValues(alpha: 0.6),
+                width: 1.5,
+              ),
+            ),
+            child: IconButton(
+              icon: Icon(
+                context.isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                color: context.loveColor,
+                size: 20,
+              ),
+              tooltip: context.isDarkMode ? 'Cambiar a Rosé Pine Dawn (Claro)' : 'Cambiar a Rosé Pine (Oscuro)',
+              onPressed: () {
+                AppTheme.toggleTheme();
+                setState(() {});
+              },
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadProfile,
@@ -130,7 +224,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: CircularProgressIndicator(color: context.loveColor, strokeWidth: 2.5))
           : _user == null
               ? _buildGuestView()
               : _buildUserProfile(),
@@ -296,12 +390,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 AppTheme.themeNotifier.value == ThemeMode.dark
                     ? Icons.radio_button_checked
                     : Icons.radio_button_unchecked,
-                color: Theme.of(context).colorScheme.primary,
+                color: context.loveColor,
               ),
               title: const Text('Rosé Pine (Oscuro)'),
               subtitle: const Text('Paleta oscura de FinanzApp'),
               onTap: () {
-                AppTheme.themeNotifier.value = ThemeMode.dark;
+                AppTheme.setTheme(ThemeMode.dark);
                 Navigator.pop(context);
                 setState(() {});
               },
@@ -311,12 +405,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 AppTheme.themeNotifier.value == ThemeMode.light
                     ? Icons.radio_button_checked
                     : Icons.radio_button_unchecked,
-                color: Theme.of(context).colorScheme.primary,
+                color: context.loveColor,
               ),
               title: const Text('Rosé Pine Dawn (Claro)'),
               subtitle: const Text('Paleta clara minimalista'),
               onTap: () {
-                AppTheme.themeNotifier.value = ThemeMode.light;
+                AppTheme.setTheme(ThemeMode.light);
                 Navigator.pop(context);
                 setState(() {});
               },
@@ -326,12 +420,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 AppTheme.themeNotifier.value == ThemeMode.system
                     ? Icons.radio_button_checked
                     : Icons.radio_button_unchecked,
-                color: Theme.of(context).colorScheme.primary,
+                color: context.loveColor,
               ),
               title: const Text('Automático'),
               subtitle: const Text('Sigue el sistema operativo'),
               onTap: () {
-                AppTheme.themeNotifier.value = ThemeMode.system;
+                AppTheme.setTheme(ThemeMode.system);
                 Navigator.pop(context);
                 setState(() {});
               },

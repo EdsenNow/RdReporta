@@ -18,86 +18,159 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<Widget> _screens = const [
     FeedScreen(),
     MapScreen(),
-    SizedBox.shrink(), // Center button placeholder
     PopularScreen(),
     ProfileScreen(),
   ];
 
-  void _onTabTapped(int index) {
-    if (index == 2) {
-      // Open Create Report Screen
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const CreatePostScreen()),
-      );
-      return;
-    }
-    setState(() => _currentIndex = index);
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _screens[_currentIndex],
-      bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 8.0,
+      extendBody: true,
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _screens,
+      ),
+      bottomNavigationBar: _buildFinanzAppBottomBar(context),
+    );
+  }
+
+  Widget _buildFinanzAppBottomBar(BuildContext context) {
+    final isDark = context.isDarkMode;
+
+    return SafeArea(
+      top: false,
+      bottom: true,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: context.surfaceColor,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(
+            color: isDark ? const Color(0x33EB6F92) : context.borderColor,
+            width: 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _buildNavItem(Icons.home_outlined, Icons.home, 'Inicio', 0),
-            _buildNavItem(Icons.map_outlined, Icons.map, 'Mapa', 1),
-            const SizedBox(width: 48), // Space for center action button
-            _buildNavItem(Icons.trending_up, Icons.trending_up, 'Popular', 3),
-            _buildNavItem(Icons.person_outline, Icons.person, 'Perfil', 4),
+            // Tab 0: Inicio (Categorías / Feed)
+            _buildNavItem(
+              outlineIcon: Icons.grid_view_outlined,
+              filledIcon: Icons.grid_view_rounded,
+              label: 'Inicio',
+              index: 0,
+            ),
+
+            // Tab 1: Mapa (Radar)
+            _buildNavItem(
+              outlineIcon: Icons.map_outlined,
+              filledIcon: Icons.map_rounded,
+              label: 'Mapa',
+              index: 1,
+            ),
+
+            // Central Floating + Action Button (FinanzApp style)
+            _buildCenterActionButton(context),
+
+            // Tab 2: Popular
+            _buildNavItem(
+              outlineIcon: Icons.pie_chart_outline_rounded,
+              filledIcon: Icons.pie_chart_rounded,
+              label: 'Popular',
+              index: 2,
+            ),
+
+            // Tab 3: Perfil
+            _buildNavItem(
+              outlineIcon: Icons.person_outline_rounded,
+              filledIcon: Icons.person_rounded,
+              label: 'Perfil',
+              index: 3,
+            ),
           ],
         ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const CreatePostScreen()),
-          );
-        },
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        shape: const CircleBorder(),
-        tooltip: 'Reportar Incidencia',
-        child: const Icon(Icons.add_a_photo, size: 26),
       ),
     );
   }
 
-  Widget _buildNavItem(IconData outlineIcon, IconData filledIcon, String label, int index) {
+  Widget _buildCenterActionButton(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const CreatePostScreen()),
+        );
+      },
+      child: Container(
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          color: context.loveColor,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: context.loveColor.withValues(alpha: 0.45),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: const Icon(
+          Icons.add_rounded,
+          color: Colors.white,
+          size: 28,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem({
+    required IconData outlineIcon,
+    required IconData filledIcon,
+    required String label,
+    required int index,
+  }) {
     final isSelected = _currentIndex == index;
-    final primaryColor = Theme.of(context).colorScheme.primary;
-    final unselectedColor = Theme.of(context).brightness == Brightness.dark
-        ? RosePineDark.muted
-        : RosePineDawn.muted;
+    final activeColor = context.loveColor;
+    final inactiveColor = context.mutedColor;
 
     return InkWell(
-      onTap: () => _onTabTapped(index),
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
+      onTap: () => setState(() => _currentIndex = index),
+      borderRadius: BorderRadius.circular(16),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
+        padding: EdgeInsets.symmetric(
+          horizontal: isSelected ? 12.0 : 8.0,
+          vertical: 6.0,
+        ),
+        decoration: BoxDecoration(
+          color: isSelected ? context.overlayColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               isSelected ? filledIcon : outlineIcon,
-              color: isSelected ? primaryColor : unselectedColor,
-              size: 24,
+              color: isSelected ? activeColor : inactiveColor,
+              size: 22,
             ),
             const SizedBox(height: 2),
             Text(
               label,
               style: TextStyle(
                 fontSize: 11,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? primaryColor : unselectedColor,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? activeColor : inactiveColor,
               ),
             ),
           ],

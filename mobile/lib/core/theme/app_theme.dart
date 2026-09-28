@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// Paleta oficial Rosé Pine y Rosé Pine Dawn
 /// Inspirada en la estética minimalista y serena de FinanzApp.
@@ -40,7 +41,47 @@ class RosePineDawn {
 
 class AppTheme {
   // Notificador global para alternar entre Modo Claro, Modo Oscuro o Sistema
-  static final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier<ThemeMode>(ThemeMode.system);
+  // Por defecto iniciamos en Modo Oscuro (Rosé Pine) para igualar la experiencia de FinanzApp
+  static final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier<ThemeMode>(ThemeMode.dark);
+
+  static const _storage = FlutterSecureStorage();
+  static const String _storageKey = 'app_theme_mode';
+
+  /// Carga la preferencia guardada de tema
+  static Future<void> loadSavedTheme() async {
+    try {
+      final saved = await _storage.read(key: _storageKey);
+      if (saved == 'light') {
+        themeNotifier.value = ThemeMode.light;
+      } else if (saved == 'dark') {
+        themeNotifier.value = ThemeMode.dark;
+      } else if (saved == 'system') {
+        themeNotifier.value = ThemeMode.system;
+      } else {
+        themeNotifier.value = ThemeMode.dark;
+      }
+    } catch (_) {
+      themeNotifier.value = ThemeMode.dark;
+    }
+  }
+
+  /// Alterna instantáneamente entre Modo Oscuro y Modo Claro
+  static Future<void> toggleTheme() async {
+    final current = themeNotifier.value;
+    final next = current == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+    themeNotifier.value = next;
+    try {
+      await _storage.write(key: _storageKey, value: next.name);
+    } catch (_) {}
+  }
+
+  /// Establece un modo específico (light, dark, system)
+  static Future<void> setTheme(ThemeMode mode) async {
+    themeNotifier.value = mode;
+    try {
+      await _storage.write(key: _storageKey, value: mode.name);
+    } catch (_) {}
+  }
 
   // Mapeo retrocompatible con la paleta Rosé Pine
   static const Color primaryBlue = Color(0xFF31748F); // Pine
@@ -318,10 +359,17 @@ class AppTheme {
 
 extension ThemeHelper on BuildContext {
   bool get isDarkMode => Theme.of(this).brightness == Brightness.dark;
+  Color get baseColor => isDarkMode ? RosePineDark.base : RosePineDawn.base;
   Color get surfaceColor => isDarkMode ? RosePineDark.surface : RosePineDawn.surface;
   Color get overlayColor => isDarkMode ? RosePineDark.overlay : RosePineDawn.overlay;
   Color get subtleColor => isDarkMode ? RosePineDark.subtle : RosePineDawn.subtle;
   Color get mutedColor => isDarkMode ? RosePineDark.muted : RosePineDawn.muted;
   Color get borderColor => isDarkMode ? RosePineDark.border : RosePineDawn.border;
   Color get textPrimaryColor => isDarkMode ? RosePineDark.text : RosePineDawn.text;
+  Color get loveColor => isDarkMode ? RosePineDark.love : RosePineDawn.love;
+  Color get pineColor => isDarkMode ? RosePineDark.pine : RosePineDawn.pine;
+  Color get foamColor => isDarkMode ? RosePineDark.foam : RosePineDawn.foam;
+  Color get irisColor => isDarkMode ? RosePineDark.iris : RosePineDawn.iris;
+  Color get goldColor => isDarkMode ? RosePineDark.gold : RosePineDawn.gold;
+  Color get successColor => isDarkMode ? RosePineDark.success : RosePineDawn.success;
 }
