@@ -1,0 +1,90 @@
+# ==========================================
+# RDReporta - Global .gitignore
+# Supports: .NET / C#, Flutter / Dart, React / Node, Docker, Databases, IDEs
+# ==========================================
+
+# --- Operating System Files ---
+.DS_Store
+Thumbs.db
+ehthumbs.db
+[Nn]on[Dd]esktop/
+$RECYCLE.BIN/
+
+# --- Environment and Secrets ---
+*.env
+*.env.local
+*.env.development.local
+*.env.test.local
+*.env.production.local
+appsettings.*.local.json
+secrets.json
+
+# --- Visual Studio & VS Code ---
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.suo
+*.userprefs
+
+# --- .NET & ASP.NET Core ---
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+*.log
+publish/
+*.publishproj
+*.pubxml
+*.azurePubxml
+project.lock.json
+project.fragment.lock.json
+artifacts/
+TestResults/
+
+# --- Node.js / React Admin ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.pnpm-debug.log*
+dist/
+build/
+.next/
+out/
+.cache/
+
+# --- Flutter & Dart ---
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+mobile/build/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.packages
+mobile/.pub-cache/
+mobile/.pub/
+mobile/ios/Flutter/Generated.xcconfig
+mobile/ios/Flutter/flutter_export_environment.sh
+mobile/ios/ServiceDefinitions.json
+mobile/ios/Runner/GeneratedPluginRegistrant.*
+mobile/android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+mobile/android/.gradle
+mobile/android/captures/
+mobile/android/gradlew
+mobile/android/gradlew.bat
+mobile/android/local.properties
+mobile/android/**/GeneratedPluginRegistrant.java
+
+# --- Docker & Database ---
+*.sql.backup
+pgdata/
+data/
