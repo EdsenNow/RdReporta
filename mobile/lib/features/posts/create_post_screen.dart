@@ -225,12 +225,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Nuevo Reporte Ciudadano'),
       ),
       body: _fetchingCategories
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: CircularProgressIndicator(color: theme.colorScheme.primary, strokeWidth: 2.5))
           : SingleChildScrollView(
               padding: const EdgeInsets.all(20.0),
               child: Form(
@@ -239,16 +241,16 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Categoría
-                    const Text(
+                    Text(
                       'Categoría de la Incidencia',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: context.textPrimaryColor),
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<CategoryModel>(
                       initialValue: _selectedCategory,
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      dropdownColor: context.surfaceColor,
+                      decoration: const InputDecoration(
+                        contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       ),
                       items: _categories.map((c) {
                         return DropdownMenuItem(
@@ -261,60 +263,62 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     const SizedBox(height: 20),
 
                     // Título
-                    const Text(
+                    Text(
                       'Título Resumido',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: context.textPrimaryColor),
                     ),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _titleController,
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         hintText: 'Ej. Semáforo apagado en intersección crítica',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                       validator: (val) => val == null || val.trim().isEmpty ? 'Ingrese un título' : null,
                     ),
                     const SizedBox(height: 20),
 
                     // Descripción
-                    const Text(
+                    Text(
                       'Descripción Detallada',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: context.textPrimaryColor),
                     ),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _descriptionController,
                       maxLines: 4,
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         hintText: 'Describe lo que ocurre para que otros ciudadanos y autoridades puedan entenderlo...',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                       validator: (val) => val == null || val.trim().isEmpty ? 'Ingrese una descripción' : null,
                     ),
                     const SizedBox(height: 20),
 
                     // Fotos / Evidencias
-                    const Text(
+                    Text(
                       'Fotografías de Evidencia (Máx. 4)',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: context.textPrimaryColor),
                     ),
                     const SizedBox(height: 8),
                     Row(
                       children: [
                         OutlinedButton.icon(
                           onPressed: _loading ? null : () => _pickImage(ImageSource.camera),
-                          icon: const Icon(Icons.camera_alt),
-                          label: const Text('Cámara'),
+                          icon: Icon(Icons.camera_alt, color: theme.colorScheme.secondary),
+                          label: Text('Cámara', style: TextStyle(color: context.textPrimaryColor)),
                           style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: context.borderColor),
+                            backgroundColor: context.surfaceColor,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
                         ),
                         const SizedBox(width: 12),
                         OutlinedButton.icon(
                           onPressed: _loading ? null : () => _pickImage(ImageSource.gallery),
-                          icon: const Icon(Icons.photo_library),
-                          label: const Text('Galería'),
+                          icon: Icon(Icons.photo_library, color: theme.colorScheme.secondary),
+                          label: Text('Galería', style: TextStyle(color: context.textPrimaryColor)),
                           style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: context.borderColor),
+                            backgroundColor: context.surfaceColor,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
                         ),
@@ -334,7 +338,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                             return Stack(
                               children: [
                                 ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
+                                  borderRadius: BorderRadius.circular(10),
                                   child: Image.file(
                                     File(_selectedImages[index].path),
                                     width: 90,
@@ -368,9 +372,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppTheme.borderSubtle),
+                        color: context.surfaceColor,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: context.borderColor),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -379,25 +383,35 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Row(
-                                children: const [
-                                  Icon(Icons.location_on, color: AppTheme.primaryBlue),
-                                  SizedBox(width: 8),
+                                children: [
+                                  Icon(Icons.location_on, color: theme.colorScheme.secondary),
+                                  const SizedBox(width: 8),
                                   Text(
                                     'Ubicación en RD',
-                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                      color: context.textPrimaryColor,
+                                    ),
                                   ),
                                 ],
                               ),
                               TextButton.icon(
                                 onPressed: _locatingGps ? null : _detectLocation,
                                 icon: _locatingGps
-                                    ? const SizedBox(
+                                    ? SizedBox(
                                         width: 14,
                                         height: 14,
-                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: theme.colorScheme.secondary,
+                                        ),
                                       )
-                                    : const Icon(Icons.my_location, size: 16),
-                                label: const Text('Mi GPS', style: TextStyle(fontSize: 13)),
+                                    : Icon(Icons.my_location, size: 16, color: theme.colorScheme.secondary),
+                                label: Text(
+                                  'Mi GPS',
+                                  style: TextStyle(fontSize: 13, color: theme.colorScheme.secondary),
+                                ),
                               ),
                             ],
                           ),
@@ -405,15 +419,15 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                             const SizedBox(height: 4),
                             Text(
                               _gpsStatusText!,
-                              style: const TextStyle(fontSize: 12, color: AppTheme.confirmationGreen, fontWeight: FontWeight.w600),
+                              style: const TextStyle(fontSize: 12, color: RosePineDark.success, fontWeight: FontWeight.w600),
                             ),
                           ],
                           const SizedBox(height: 12),
                           DropdownButtonFormField<String>(
                             initialValue: _selectedProvince,
-                            decoration: InputDecoration(
+                            dropdownColor: context.surfaceColor,
+                            decoration: const InputDecoration(
                               labelText: 'Provincia',
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                             ),
                             items: _provinces.map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
                             onChanged: (val) {
@@ -428,10 +442,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                           const SizedBox(height: 12),
                           TextFormField(
                             controller: _referenceController,
-                            decoration: InputDecoration(
+                            decoration: const InputDecoration(
                               labelText: 'Punto de referencia o calle',
                               hintText: 'Ej. Frente a la estación del metro o esquina...',
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                             ),
                           ),
                         ],
@@ -442,13 +455,22 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     // Submit Button
                     SizedBox(
                       width: double.infinity,
-                      height: 52,
+                      height: 50,
                       child: ElevatedButton(
                         onPressed: _loading ? null : _submit,
-                        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accentRed),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: theme.colorScheme.primary,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
                         child: _loading
-                            ? const CircularProgressIndicator(color: Colors.white)
-                            : const Text('Publicar Incidencia', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                              )
+                            : const Text('Publicar Incidencia', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                       ),
                     ),
                   ],

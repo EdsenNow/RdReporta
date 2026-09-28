@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/networking/api_client.dart';
+import '../../core/theme/app_theme.dart';
 import '../../shared/models/models.dart';
 import '../../shared/widgets/incident_card.dart';
 import 'auth/login_screen.dart';
@@ -181,7 +182,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           CircleAvatar(
             radius: 46,
-            backgroundColor: const Color(0xFF002F6C),
+            backgroundColor: Theme.of(context).colorScheme.secondary,
             child: Text(
               initials,
               style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
@@ -190,23 +191,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 12),
           Text(
             '@${_user!.username}',
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: context.textPrimaryColor),
           ),
           const SizedBox(height: 4),
           Text(
             _user!.email,
-            style: const TextStyle(fontSize: 13, color: Colors.grey),
+            style: TextStyle(fontSize: 13, color: context.subtleColor),
           ),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.blue.withValues(alpha: 0.1),
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.25)),
             ),
             child: Text(
               'Nivel: ${_user!.reputationLevel}',
-              style: const TextStyle(color: Color(0xFF002F6C), fontWeight: FontWeight.w600, fontSize: 13),
+              style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w600, fontSize: 13),
             ),
           ),
           const SizedBox(height: 24),
@@ -224,17 +226,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           // Details List
           ListTile(
-            leading: const Icon(Icons.location_on_outlined, color: Color(0xFF002F6C)),
+            leading: Icon(Icons.location_on_outlined, color: Theme.of(context).colorScheme.secondary),
             title: Text('Provincia: ${_user!.province ?? "República Dominicana"}'),
             subtitle: _user!.municipality != null ? Text('Municipio: ${_user!.municipality}') : null,
           ),
           ListTile(
-            leading: const Icon(Icons.calendar_today_outlined, color: Color(0xFF002F6C)),
+            leading: Icon(Icons.calendar_today_outlined, color: Theme.of(context).colorScheme.secondary),
             title: const Text('Miembro de la comunidad desde'),
             subtitle: Text('${_user!.createdAt.day}/${_user!.createdAt.month}/${_user!.createdAt.year}'),
           ),
           ListTile(
-            leading: const Icon(Icons.shield_outlined, color: Color(0xFF002F6C)),
+            leading: Icon(Icons.shield_outlined, color: Theme.of(context).colorScheme.secondary),
             title: const Text('Normas comunitarias y Privacidad'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
@@ -252,6 +254,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               );
             },
           ),
+          ListTile(
+            leading: Icon(Icons.palette_outlined, color: Theme.of(context).colorScheme.primary),
+            title: const Text('Tema y Apariencia (Rosé Pine)'),
+            subtitle: Text(_getThemeName(AppTheme.themeNotifier.value)),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _showThemeSelector,
+          ),
           const SizedBox(height: 12),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
@@ -263,12 +272,84 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  String _getThemeName(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.light:
+        return 'Rosé Pine Dawn (Claro)';
+      case ThemeMode.dark:
+        return 'Rosé Pine (Oscuro)';
+      case ThemeMode.system:
+        return 'Automático (Sistema)';
+    }
+  }
+
+  void _showThemeSelector() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Tema de la Aplicación'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(
+                AppTheme.themeNotifier.value == ThemeMode.dark
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              title: const Text('Rosé Pine (Oscuro)'),
+              subtitle: const Text('Paleta oscura de FinanzApp'),
+              onTap: () {
+                AppTheme.themeNotifier.value = ThemeMode.dark;
+                Navigator.pop(context);
+                setState(() {});
+              },
+            ),
+            ListTile(
+              leading: Icon(
+                AppTheme.themeNotifier.value == ThemeMode.light
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              title: const Text('Rosé Pine Dawn (Claro)'),
+              subtitle: const Text('Paleta clara minimalista'),
+              onTap: () {
+                AppTheme.themeNotifier.value = ThemeMode.light;
+                Navigator.pop(context);
+                setState(() {});
+              },
+            ),
+            ListTile(
+              leading: Icon(
+                AppTheme.themeNotifier.value == ThemeMode.system
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              title: const Text('Automático'),
+              subtitle: const Text('Sigue el sistema operativo'),
+              onTap: () {
+                AppTheme.themeNotifier.value = ThemeMode.system;
+                Navigator.pop(context);
+                setState(() {});
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildStat(String label, String value) {
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
     return Column(
       children: [
-        Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF002F6C))),
+        Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: primaryColor)),
         const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        Text(label, style: TextStyle(fontSize: 12, color: context.subtleColor)),
       ],
     );
   }

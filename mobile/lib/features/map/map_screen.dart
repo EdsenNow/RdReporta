@@ -172,8 +172,10 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Widget _buildInteractiveMapCanvas() {
+    final isDark = context.isDarkMode;
+
     return Container(
-      color: const Color(0xFFE5EDF5),
+      color: Theme.of(context).scaffoldBackgroundColor,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final width = constraints.maxWidth;
@@ -191,7 +193,12 @@ class _MapScreenState extends State<MapScreen> {
                   // Cuadrícula y mapa temático de fondo de República Dominicana
                   Positioned.fill(
                     child: CustomPaint(
-                      painter: _DominicanMapPainter(),
+                      painter: _DominicanMapPainter(
+                        isDark: isDark,
+                        islandColor: isDark ? RosePineDark.surface : RosePineDawn.surface,
+                        borderColor: context.borderColor,
+                        textColor: context.subtleColor,
+                      ),
                     ),
                   ),
 
@@ -227,7 +234,7 @@ class _MapScreenState extends State<MapScreen> {
                                   border: Border.all(color: Colors.white, width: 2),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: pinColor.withValues(alpha: 0.4),
+                                      color: pinColor.withValues(alpha: 0.35),
                                       blurRadius: 8,
                                       spreadRadius: 2,
                                     ),
@@ -261,8 +268,11 @@ class _MapScreenState extends State<MapScreen> {
 
   Widget _buildRadarListView() {
     if (_pins.isEmpty) {
-      return const Center(
-        child: Text('No hay incidencias geolocalizadas registradas para este filtro.'),
+      return Center(
+        child: Text(
+          'No hay incidencias geolocalizadas registradas para este filtro.',
+          style: TextStyle(color: context.subtleColor),
+        ),
       );
     }
 
@@ -280,12 +290,12 @@ class _MapScreenState extends State<MapScreen> {
               backgroundColor: pinColor.withValues(alpha: 0.15),
               child: Icon(Icons.location_on, color: pinColor),
             ),
-            title: Text(pin.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            title: Text(pin.title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: context.textPrimaryColor)),
             subtitle: Text(
               '${pin.categoryName} • ✓ ${pin.confirmationsCount} confirmaciones',
               style: TextStyle(color: pinColor, fontSize: 12, fontWeight: FontWeight.w600),
             ),
-            trailing: const Icon(Icons.chevron_right),
+            trailing: Icon(Icons.chevron_right, color: context.subtleColor),
             onTap: () {
               Navigator.push(
                 context,
@@ -312,15 +322,14 @@ class _MapScreenState extends State<MapScreen> {
         margin: const EdgeInsets.only(right: 8),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? color : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isSelected ? color : AppTheme.borderSubtle),
-          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
+          color: isSelected ? color : context.surfaceColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: isSelected ? color : context.borderColor),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? Colors.white : AppTheme.textPrimary,
+            color: isSelected ? Colors.white : context.textPrimaryColor,
             fontSize: 12,
             fontWeight: FontWeight.bold,
           ),
@@ -333,8 +342,6 @@ class _MapScreenState extends State<MapScreen> {
     final pinColor = _parseColor(pin.categoryColor);
 
     return Card(
-      elevation: 6,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -356,7 +363,7 @@ class _MapScreenState extends State<MapScreen> {
                 ),
                 const Spacer(),
                 IconButton(
-                  icon: const Icon(Icons.close, size: 18),
+                  icon: Icon(Icons.close, size: 18, color: context.subtleColor),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                   onPressed: () => setState(() => _selectedPin = null),
@@ -366,19 +373,19 @@ class _MapScreenState extends State<MapScreen> {
             const SizedBox(height: 8),
             Text(
               pin.title,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: context.textPrimaryColor),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 6),
             Text(
               'Coordenadas: ${pin.latitude.toStringAsFixed(4)}, ${pin.longitude.toStringAsFixed(4)} • ✓ ${pin.confirmationsCount} confirmaciones',
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
+              style: TextStyle(fontSize: 12, color: context.mutedColor),
             ),
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
-              height: 40,
+              height: 42,
               child: ElevatedButton.icon(
                 onPressed: () {
                   Navigator.push(
@@ -388,6 +395,12 @@ class _MapScreenState extends State<MapScreen> {
                     ),
                   );
                 },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
                 icon: const Icon(Icons.remove_red_eye_outlined, size: 16),
                 label: const Text('Ver Detalles de la Incidencia', style: TextStyle(fontSize: 13)),
               ),
@@ -400,10 +413,22 @@ class _MapScreenState extends State<MapScreen> {
 }
 
 class _DominicanMapPainter extends CustomPainter {
+  final bool isDark;
+  final Color islandColor;
+  final Color borderColor;
+  final Color textColor;
+
+  _DominicanMapPainter({
+    required this.isDark,
+    required this.islandColor,
+    required this.borderColor,
+    required this.textColor,
+  });
+
   @override
   void paint(Canvas canvas, Size size) {
     final paintGrid = Paint()
-      ..color = Colors.blueGrey.withValues(alpha: 0.08)
+      ..color = borderColor
       ..strokeWidth = 1.0;
 
     // Cuadrícula geodésica sutil
@@ -416,22 +441,28 @@ class _DominicanMapPainter extends CustomPainter {
 
     // Región de RD simulada
     final paintRD = Paint()
-      ..color = Colors.white.withValues(alpha: 0.6)
+      ..color = islandColor
       ..style = PaintingStyle.fill;
+
+    final paintRDBorder = Paint()
+      ..color = borderColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
 
     final rectRD = RRect.fromRectAndRadius(
       Rect.fromLTWH(size.width * 0.1, size.height * 0.25, size.width * 0.8, size.height * 0.5),
       const Radius.circular(24),
     );
     canvas.drawRRect(rectRD, paintRD);
+    canvas.drawRRect(rectRD, paintRDBorder);
 
     // Texto de referencia territorial
     final textPainter = TextPainter(
-      text: const TextSpan(
+      text: TextSpan(
         text: 'REPÚBLICA DOMINICANA\nRed Geoespacial de Incidencias',
         style: TextStyle(
-          color: Color(0xFF64748B),
-          fontSize: 14,
+          color: textColor,
+          fontSize: 13,
           fontWeight: FontWeight.bold,
           letterSpacing: 1.2,
         ),
@@ -447,5 +478,9 @@ class _DominicanMapPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _DominicanMapPainter oldDelegate) {
+    return oldDelegate.isDark != isDark ||
+        oldDelegate.islandColor != islandColor ||
+        oldDelegate.borderColor != borderColor;
+  }
 }

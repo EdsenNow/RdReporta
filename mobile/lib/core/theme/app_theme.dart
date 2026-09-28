@@ -1,67 +1,327 @@
 import 'package:flutter/material.dart';
 
-class AppTheme {
-  // Brand colors (Dominican Republic blue & red accents)
-  static const Color primaryBlue = Color(0xFF002F6C);
-  static const Color primaryBlueLight = Color(0xFF1565C0);
-  static const Color accentRed = Color(0xFFCE1126);
-  static const Color backgroundLight = Color(0xFFF8FAFC);
-  static const Color cardColor = Color(0xFFFFFFFF);
-  static const Color textPrimary = Color(0xFF0F172A);
-  static const Color textSecondary = Color(0xFF64748B);
-  static const Color borderSubtle = Color(0xFFE2E8F0);
-  static const Color confirmationGreen = Color(0xFF16A34A);
+/// Paleta oficial Rosé Pine y Rosé Pine Dawn
+/// Inspirada en la estética minimalista y serena de FinanzApp.
+class RosePineDark {
+  static const Color base = Color(0xFF191724);
+  static const Color surface = Color(0xFF1F1D2E);
+  static const Color overlay = Color(0xFF26233A);
+  static const Color muted = Color(0xFF6E6A86);
+  static const Color subtle = Color(0xFF908CAA);
+  static const Color text = Color(0xFFE0DEF4);
+  static const Color love = Color(0xFFEB6F92); // Red / Accent
+  static const Color gold = Color(0xFFF6C177); // Yellow / Warning
+  static const Color rose = Color(0xFFEBBCBA);
+  static const Color pine = Color(0xFF31748F); // Pine / Blue brand
+  static const Color foam = Color(0xFF9CCFD8); // Teal
+  static const Color iris = Color(0xFFC4A7E7); // Purple
+  static const Color success = Color(0xFF2D957B); // Success / Confirmo (FinanzApp)
+  static const Color border = Color(0x14FFFFFF); // 8% white
+  static const Color borderHover = Color(0x24FFFFFF);
+}
 
+class RosePineDawn {
+  static const Color base = Color(0xFFFAF4ED);
+  static const Color surface = Color(0xFFFFFAF3);
+  static const Color overlay = Color(0xFFF4EDE8);
+  static const Color muted = Color(0xFF9893A5);
+  static const Color subtle = Color(0xFF797593);
+  static const Color text = Color(0xFF575279);
+  static const Color love = Color(0xFFB4637A); // Red / Accent
+  static const Color gold = Color(0xFFEA9D34); // Warning
+  static const Color rose = Color(0xFFD7827E);
+  static const Color pine = Color(0xFF286983); // Pine / Blue brand
+  static const Color foam = Color(0xFF56949F); // Teal
+  static const Color iris = Color(0xFF9C6BD7); // Purple
+  static const Color success = Color(0xFF2D957B); // Success / Confirmo (FinanzApp)
+  static const Color border = Color(0xFFF2E9E1);
+  static const Color borderHover = Color(0xFFE6DED6);
+}
+
+class AppTheme {
+  // Notificador global para alternar entre Modo Claro, Modo Oscuro o Sistema
+  static final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier<ThemeMode>(ThemeMode.system);
+
+  // Mapeo retrocompatible con la paleta Rosé Pine
+  static const Color primaryBlue = Color(0xFF31748F); // Pine
+  static const Color primaryBlueLight = Color(0xFF56949F); // Foam
+  static const Color accentRed = Color(0xFFEB6F92); // Love
+  static const Color backgroundLight = Color(0xFFFAF4ED); // Dawn base
+  static const Color cardColor = Color(0xFFFFFAF3); // Dawn surface
+  static const Color textPrimary = Color(0xFF575279); // Dawn text
+  static const Color textSecondary = Color(0xFF797593); // Dawn subtle
+  static const Color borderSubtle = Color(0xFFF2E9E1); // Dawn border
+  static const Color confirmationGreen = Color(0xFF2D957B); // Success (FinanzApp)
+
+  // --- TEMA CLARO (Rosé Pine Dawn) ---
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: primaryBlue,
-        primary: primaryBlue,
-        secondary: accentRed,
-        surface: cardColor,
+      brightness: Brightness.light,
+      scaffoldBackgroundColor: RosePineDawn.base,
+      colorScheme: const ColorScheme.light(
+        primary: RosePineDawn.love,
+        secondary: RosePineDawn.pine,
+        tertiary: RosePineDawn.foam,
+        surface: RosePineDawn.surface,
+        error: RosePineDawn.love,
+        onPrimary: Colors.white,
+        onSecondary: Colors.white,
+        onSurface: RosePineDawn.text,
+        outline: RosePineDawn.border,
       ),
-      scaffoldBackgroundColor: backgroundLight,
       appBarTheme: const AppBarTheme(
-        backgroundColor: primaryBlue,
-        foregroundColor: Colors.white,
+        backgroundColor: RosePineDawn.surface,
+        foregroundColor: RosePineDawn.text,
         elevation: 0,
+        scrolledUnderElevation: 0.5,
         centerTitle: true,
         titleTextStyle: TextStyle(
-          color: Colors.white,
+          color: RosePineDawn.text,
           fontSize: 18,
           fontWeight: FontWeight.bold,
+          letterSpacing: 0.5,
         ),
+        iconTheme: IconThemeData(color: RosePineDawn.text),
+      ),
+      bottomAppBarTheme: const BottomAppBarThemeData(
+        color: RosePineDawn.surface,
+        elevation: 0,
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: Colors.white,
-        selectedItemColor: primaryBlue,
-        unselectedItemColor: textSecondary,
+        backgroundColor: RosePineDawn.surface,
+        selectedItemColor: RosePineDawn.love,
+        unselectedItemColor: RosePineDawn.muted,
         showUnselectedLabels: true,
         type: BottomNavigationBarType.fixed,
-        elevation: 8,
+        elevation: 0,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryBlue,
+          backgroundColor: RosePineDawn.love,
           foregroundColor: Colors.white,
           elevation: 0,
+          shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+          textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
         ),
       ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: RosePineDawn.pine,
+          side: const BorderSide(color: RosePineDawn.border, width: 1.2),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 18),
+        ),
+      ),
       cardTheme: CardThemeData(
-        color: cardColor,
-        elevation: 1,
+        color: RosePineDawn.surface,
+        elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: const BorderSide(color: borderSubtle, width: 1),
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: RosePineDawn.border, width: 1),
         ),
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: RosePineDawn.surface,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: RosePineDawn.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: RosePineDawn.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: RosePineDawn.love, width: 1.5),
+        ),
+        labelStyle: const TextStyle(color: RosePineDawn.subtle),
+        hintStyle: const TextStyle(color: RosePineDawn.muted),
+      ),
+      tabBarTheme: const TabBarThemeData(
+        labelColor: RosePineDawn.love,
+        unselectedLabelColor: RosePineDawn.muted,
+        indicatorColor: RosePineDawn.love,
+        indicatorSize: TabBarIndicatorSize.tab,
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: RosePineDawn.surface,
+        modalBackgroundColor: RosePineDawn.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: RosePineDawn.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: RosePineDawn.border),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: RosePineDawn.overlay,
+        selectedColor: RosePineDawn.love.withValues(alpha: 0.15),
+        side: const BorderSide(color: RosePineDawn.border),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        labelStyle: const TextStyle(fontSize: 12, color: RosePineDawn.text),
+      ),
+      dividerColor: RosePineDawn.border,
+      textTheme: const TextTheme(
+        titleLarge: TextStyle(color: RosePineDawn.text, fontWeight: FontWeight.bold),
+        titleMedium: TextStyle(color: RosePineDawn.text, fontWeight: FontWeight.w600),
+        bodyLarge: TextStyle(color: RosePineDawn.text),
+        bodyMedium: TextStyle(color: RosePineDawn.subtle),
+      ),
     );
   }
+
+  // --- TEMA OSCURO (Rosé Pine Main / Moon) ---
+  static ThemeData get darkTheme {
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      scaffoldBackgroundColor: RosePineDark.base,
+      colorScheme: const ColorScheme.dark(
+        primary: RosePineDark.love,
+        secondary: RosePineDark.pine,
+        tertiary: RosePineDark.foam,
+        surface: RosePineDark.surface,
+        error: RosePineDark.love,
+        onPrimary: Colors.white,
+        onSecondary: Colors.white,
+        onSurface: RosePineDark.text,
+        outline: RosePineDark.border,
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: RosePineDark.surface,
+        foregroundColor: RosePineDark.text,
+        elevation: 0,
+        scrolledUnderElevation: 0.5,
+        centerTitle: true,
+        titleTextStyle: TextStyle(
+          color: RosePineDark.text,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 0.5,
+        ),
+        iconTheme: IconThemeData(color: RosePineDark.text),
+      ),
+      bottomAppBarTheme: const BottomAppBarThemeData(
+        color: RosePineDark.surface,
+        elevation: 0,
+      ),
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: RosePineDark.surface,
+        selectedItemColor: RosePineDark.love,
+        unselectedItemColor: RosePineDark.muted,
+        showUnselectedLabels: true,
+        type: BottomNavigationBarType.fixed,
+        elevation: 0,
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: RosePineDark.love,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: RosePineDark.foam,
+          side: const BorderSide(color: RosePineDark.border, width: 1.2),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 18),
+        ),
+      ),
+      cardTheme: CardThemeData(
+        color: RosePineDark.surface,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: RosePineDark.border, width: 1),
+        ),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: RosePineDark.overlay,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: RosePineDark.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: RosePineDark.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: RosePineDark.love, width: 1.5),
+        ),
+        labelStyle: const TextStyle(color: RosePineDark.subtle),
+        hintStyle: const TextStyle(color: RosePineDark.muted),
+      ),
+      tabBarTheme: const TabBarThemeData(
+        labelColor: RosePineDark.love,
+        unselectedLabelColor: RosePineDark.muted,
+        indicatorColor: RosePineDark.love,
+        indicatorSize: TabBarIndicatorSize.tab,
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: RosePineDark.surface,
+        modalBackgroundColor: RosePineDark.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: RosePineDark.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: RosePineDark.border),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: RosePineDark.overlay,
+        selectedColor: RosePineDark.love.withValues(alpha: 0.2),
+        side: const BorderSide(color: RosePineDark.border),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        labelStyle: const TextStyle(fontSize: 12, color: RosePineDark.text),
+      ),
+      dividerColor: RosePineDark.border,
+      textTheme: const TextTheme(
+        titleLarge: TextStyle(color: RosePineDark.text, fontWeight: FontWeight.bold),
+        titleMedium: TextStyle(color: RosePineDark.text, fontWeight: FontWeight.w600),
+        bodyLarge: TextStyle(color: RosePineDark.text),
+        bodyMedium: TextStyle(color: RosePineDark.subtle),
+      ),
+    );
+  }
+}
+
+extension ThemeHelper on BuildContext {
+  bool get isDarkMode => Theme.of(this).brightness == Brightness.dark;
+  Color get surfaceColor => isDarkMode ? RosePineDark.surface : RosePineDawn.surface;
+  Color get overlayColor => isDarkMode ? RosePineDark.overlay : RosePineDawn.overlay;
+  Color get subtleColor => isDarkMode ? RosePineDark.subtle : RosePineDawn.subtle;
+  Color get mutedColor => isDarkMode ? RosePineDark.muted : RosePineDawn.muted;
+  Color get borderColor => isDarkMode ? RosePineDark.border : RosePineDawn.border;
+  Color get textPrimaryColor => isDarkMode ? RosePineDark.text : RosePineDawn.text;
 }

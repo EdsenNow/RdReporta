@@ -59,7 +59,7 @@ class _IncidentCardState extends State<IncidentCard> {
     try {
       categoryColor = Color(int.parse(post.categoryColor.replaceFirst('#', '0xFF')));
     } catch (_) {
-      categoryColor = AppTheme.primaryBlue;
+      categoryColor = Theme.of(context).colorScheme.secondary;
     }
 
     return Card(
@@ -79,156 +79,167 @@ class _IncidentCardState extends State<IncidentCard> {
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header: Category badge & Author
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: categoryColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    post.categoryName,
-                    style: TextStyle(
-                      color: categoryColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '@${post.authorUsername}',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-
-            // Title & Description
-            Text(
-              post.title,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              post.description,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Color(0xFF334155),
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Photos
-            if (post.images.isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: CachedNetworkImage(
-                  imageUrl: _formatImageUrl(post.images.first),
-                  height: 200,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(
-                    height: 200,
-                    color: Colors.grey[200],
-                    child: const Center(child: CircularProgressIndicator()),
-                  ),
-                  errorWidget: (context, url, error) => const SizedBox.shrink(),
-                ),
-              ),
-            if (post.images.isNotEmpty) const SizedBox(height: 12),
-
-            // Location pill
-            Row(
-              children: [
-                const Icon(Icons.location_on_outlined, size: 16, color: AppTheme.textSecondary),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    '${post.municipality}, ${post.province}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: AppTheme.textSecondary,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Text(
-                  '${post.viewsCount} vistas',
-                  style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-                ),
-              ],
-            ),
-            const Divider(height: 24),
-
-            // Bottom Actions: "Confirmo" button + reactions
-            Row(
-              children: [
-                // Highlighted Confirmation Button
-                InkWell(
-                  onTap: _onConfirmPressed,
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header: Category badge & Author
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: _confirmed ? AppTheme.confirmationGreen : Colors.grey[100],
+                      color: categoryColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: _confirmed ? AppTheme.confirmationGreen : AppTheme.borderSubtle,
+                        color: categoryColor.withValues(alpha: 0.25),
+                        width: 1,
                       ),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.check_circle,
-                          size: 18,
-                          color: _confirmed ? Colors.white : AppTheme.textSecondary,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Confirmo ($_confirmationsCount)',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: _confirmed ? Colors.white : AppTheme.textPrimary,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      post.categoryName,
+                      style: TextStyle(
+                        color: categoryColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                ),
-                const Spacer(),
+                  const Spacer(),
+                  Text(
+                    '@${post.authorUsername}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: context.subtleColor,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
 
-                // Reaction icons (No comments, no DMs!)
-                IconButton(
-                  icon: const Icon(Icons.warning_amber_rounded, size: 20),
-                  tooltip: 'Importante',
-                  onPressed: () {},
+              // Title & Description
+              Text(
+                post.title,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: context.textPrimaryColor,
                 ),
-                IconButton(
-                  icon: const Icon(Icons.share_outlined, size: 20),
-                  tooltip: 'Compartir',
-                  onPressed: () {},
+              ),
+              const SizedBox(height: 6),
+              Text(
+                post.description,
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.4,
+                  color: context.subtleColor,
                 ),
-              ],
-            ),
-          ],
+              ),
+              const SizedBox(height: 12),
+
+              // Photos
+              if (post.images.isNotEmpty)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: CachedNetworkImage(
+                    imageUrl: _formatImageUrl(post.images.first),
+                    height: 200,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
+                      height: 200,
+                      color: context.overlayColor,
+                      child: const Center(
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                    errorWidget: (context, url, error) => const SizedBox.shrink(),
+                  ),
+                ),
+              if (post.images.isNotEmpty) const SizedBox(height: 12),
+
+              // Location pill
+              Row(
+                children: [
+                  Icon(Icons.location_on_outlined, size: 16, color: context.mutedColor),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      '${post.municipality}, ${post.province}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: context.subtleColor,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Text(
+                    '${post.viewsCount} vistas',
+                    style: TextStyle(fontSize: 12, color: context.mutedColor),
+                  ),
+                ],
+              ),
+              Divider(height: 24, color: context.borderColor),
+
+              // Bottom Actions: "Confirmo" button + reactions
+              Row(
+                children: [
+                  // Highlighted Confirmation Button
+                  InkWell(
+                    onTap: _onConfirmPressed,
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _confirmed
+                            ? RosePineDark.success
+                            : context.overlayColor,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: _confirmed
+                              ? RosePineDark.success
+                              : context.borderColor,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.check_circle,
+                            size: 18,
+                            color: _confirmed ? Colors.white : context.subtleColor,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Confirmo ($_confirmationsCount)',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: _confirmed ? Colors.white : context.textPrimaryColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+
+                  // Reaction icons (No comments, no DMs!)
+                  IconButton(
+                    icon: Icon(Icons.warning_amber_rounded, size: 20, color: context.subtleColor),
+                    tooltip: 'Importante',
+                    onPressed: () {},
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.share_outlined, size: 20, color: context.subtleColor),
+                    tooltip: 'Compartir',
+                    onPressed: () {},
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }

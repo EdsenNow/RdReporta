@@ -43,8 +43,9 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: AppTheme.primaryBlue,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -53,21 +54,22 @@ class _SplashScreenState extends State<SplashScreen> {
               width: 90,
               height: 90,
               decoration: BoxDecoration(
-                color: Colors.white,
+                gradient: LinearGradient(
+                  colors: [
+                    theme.colorScheme.secondary, // Pine
+                    theme.colorScheme.primary,   // Love
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.2),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
+                border: Border.all(color: context.borderColor, width: 1.5),
               ),
               child: const Center(
                 child: Text(
                   'RD',
                   style: TextStyle(
-                    color: AppTheme.accentRed,
+                    color: Colors.white,
                     fontSize: 40,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 2,
@@ -76,10 +78,10 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            const Text(
+            Text(
               'RDReporta',
               style: TextStyle(
-                color: Colors.white,
+                color: theme.colorScheme.primary,
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1.2,
@@ -89,13 +91,13 @@ class _SplashScreenState extends State<SplashScreen> {
             Text(
               'Información e Incidencias en República Dominicana',
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.85),
+                color: context.subtleColor,
                 fontSize: 13,
               ),
             ),
             const SizedBox(height: 48),
-            const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
               strokeWidth: 2.5,
             ),
           ],

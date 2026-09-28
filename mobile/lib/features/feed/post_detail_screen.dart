@@ -77,6 +77,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: context.surfaceColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -97,26 +98,30 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Reportar Incidencia',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: context.textPrimaryColor,
+                        ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close),
+                        icon: Icon(Icons.close, color: context.subtleColor),
                         onPressed: () => Navigator.pop(context),
                       ),
                     ],
                   ),
-                  const Text(
+                  Text(
                     'Ayúdanos a mantener la calidad y veracidad informativa en la comunidad.',
-                    style: TextStyle(color: Colors.grey, fontSize: 13),
+                    style: TextStyle(color: context.subtleColor, fontSize: 13),
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
                     initialValue: selectedReason,
-                    decoration: InputDecoration(
+                    dropdownColor: context.surfaceColor,
+                    decoration: const InputDecoration(
                       labelText: 'Motivo del Reporte',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                     items: const [
                       DropdownMenuItem(value: 'InformacionFalsa', child: Text('Información falsa o engañosa')),
@@ -133,9 +138,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   TextField(
                     controller: descController,
                     maxLines: 3,
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       hintText: 'Describe brevemente la anomalía (opcional)...',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -156,12 +160,16 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                               content: Text(ok
                                   ? 'Denuncia enviada a moderación. ¡Gracias!'
                                   : 'Ya has reportado esta publicación anteriormente.'),
-                              backgroundColor: ok ? AppTheme.confirmationGreen : AppTheme.accentRed,
+                              backgroundColor: ok ? RosePineDark.success : Theme.of(this.context).colorScheme.primary,
                             ),
                           );
                         }
                       },
-                      style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accentRed),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                      ),
                       child: const Text('Enviar Denuncia'),
                     ),
                   ),
@@ -181,17 +189,29 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     if (_loading && _post == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Detalle de Incidencia')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: Center(
+          child: CircularProgressIndicator(
+            color: theme.colorScheme.primary,
+            strokeWidth: 2.5,
+          ),
+        ),
       );
     }
 
     if (_post == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Detalle de Incidencia')),
-        body: const Center(child: Text('Incidencia no encontrada o retirada.')),
+        body: Center(
+          child: Text(
+            'Incidencia no encontrada o retirada.',
+            style: TextStyle(color: context.subtleColor),
+          ),
+        ),
       );
     }
 
@@ -200,7 +220,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     try {
       categoryColor = Color(int.parse(post.categoryColor.replaceFirst('#', '0xFF')));
     } catch (_) {
-      categoryColor = AppTheme.primaryBlue;
+      categoryColor = theme.colorScheme.secondary;
     }
 
     return Scaffold(
@@ -208,7 +228,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         title: const Text('Detalle de Incidencia'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.flag_outlined, color: Colors.red),
+            icon: Icon(Icons.flag_outlined, color: theme.colorScheme.primary),
             tooltip: 'Denunciar reporte',
             onPressed: _showReportDialog,
           ),
@@ -218,8 +238,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border(top: BorderSide(color: AppTheme.borderSubtle)),
+            color: context.surfaceColor,
+            border: Border(top: BorderSide(color: context.borderColor)),
           ),
           child: Row(
             children: [
@@ -232,7 +252,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _confirmed ? AppTheme.confirmationGreen : AppTheme.primaryBlue,
+                    backgroundColor: _confirmed ? RosePineDark.success : theme.colorScheme.secondary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                 ),
@@ -261,12 +283,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                           fit: BoxFit.cover,
                           width: double.infinity,
                           placeholder: (context, url) => Container(
-                            color: Colors.grey[200],
-                            child: const Center(child: CircularProgressIndicator()),
+                            color: context.overlayColor,
+                            child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
                           ),
                           errorWidget: (context, url, error) => Container(
-                            color: Colors.grey[200],
-                            child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                            color: context.overlayColor,
+                            child: Icon(Icons.broken_image, size: 48, color: context.mutedColor),
                           ),
                         );
                       },
@@ -305,7 +327,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
                           color: categoryColor.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: categoryColor.withValues(alpha: 0.3)),
                         ),
                         child: Text(
                           post.categoryName,
@@ -316,13 +339,15 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
-                          color: post.status == 'Active' ? Colors.green.withValues(alpha: 0.15) : Colors.orange.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(6),
+                          color: post.status == 'Active'
+                              ? RosePineDark.success.withValues(alpha: 0.15)
+                              : RosePineDark.gold.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           post.status == 'Active' ? 'Activa' : post.status,
                           style: TextStyle(
-                            color: post.status == 'Active' ? Colors.green[800] : Colors.orange[800],
+                            color: post.status == 'Active' ? RosePineDark.success : RosePineDark.gold,
                             fontWeight: FontWeight.w600,
                             fontSize: 12,
                           ),
@@ -331,7 +356,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       const Spacer(),
                       Text(
                         '${post.createdAt.day}/${post.createdAt.month}/${post.createdAt.year}',
-                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                        style: TextStyle(color: context.mutedColor, fontSize: 12),
                       ),
                     ],
                   ),
@@ -340,7 +365,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   // Título
                   Text(
                     post.title,
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: context.textPrimaryColor,
+                    ),
                   ),
                   const SizedBox(height: 12),
 
@@ -349,7 +378,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     children: [
                       CircleAvatar(
                         radius: 18,
-                        backgroundColor: AppTheme.primaryBlue,
+                        backgroundColor: theme.colorScheme.secondary,
                         child: Text(
                           post.authorUsername.isNotEmpty ? post.authorUsername[0].toUpperCase() : 'C',
                           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
@@ -359,31 +388,49 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('@${post.authorUsername}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          Text(
+                            '@${post.authorUsername}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: context.textPrimaryColor,
+                            ),
+                          ),
                           Text(
                             post.authorReputation,
-                            style: const TextStyle(fontSize: 11, color: AppTheme.primaryBlue, fontWeight: FontWeight.w500),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: theme.colorScheme.secondary,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ],
                       ),
                       const Spacer(),
                       Text(
                         '${post.viewsCount} visualizaciones',
-                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                        style: TextStyle(color: context.mutedColor, fontSize: 12),
                       ),
                     ],
                   ),
-                  const Divider(height: 32),
+                  Divider(height: 32, color: context.borderColor),
 
                   // Descripción Completa
-                  const Text(
+                  Text(
                     'Detalles del Incidente',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: context.textPrimaryColor,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     post.description,
-                    style: const TextStyle(fontSize: 15, height: 1.5, color: Color(0xFF334155)),
+                    style: TextStyle(
+                      fontSize: 15,
+                      height: 1.5,
+                      color: context.subtleColor,
+                    ),
                   ),
                   const SizedBox(height: 24),
 
@@ -391,56 +438,64 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppTheme.borderSubtle),
+                      color: context.surfaceColor,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: context.borderColor),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
-                          children: const [
-                            Icon(Icons.location_on, color: AppTheme.primaryBlue),
-                            SizedBox(width: 8),
+                          children: [
+                            Icon(Icons.location_on, color: theme.colorScheme.secondary),
+                            const SizedBox(width: 8),
                             Text(
                               'Ubicación Georreferenciada',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: context.textPrimaryColor,
+                              ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 8),
                         Text(
                           '${post.municipality}, ${post.province}',
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: context.textPrimaryColor,
+                          ),
                         ),
                         if (post.addressReference != null && post.addressReference!.isNotEmpty) ...[
                           const SizedBox(height: 4),
                           Text(
                             'Referencia: ${post.addressReference}',
-                            style: const TextStyle(fontSize: 13, color: Colors.black54),
+                            style: TextStyle(fontSize: 13, color: context.subtleColor),
                           ),
                         ],
                         const SizedBox(height: 6),
                         Text(
                           'Coordenadas: ${post.latitude.toStringAsFixed(4)}, ${post.longitude.toStringAsFixed(4)}',
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          style: TextStyle(fontSize: 12, color: context.mutedColor),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
                   // Validación Ciudadana
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.green.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
+                      color: RosePineDark.success.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: RosePineDark.success.withValues(alpha: 0.25)),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.verified, color: AppTheme.confirmationGreen, size: 28),
+                        const Icon(Icons.verified, color: RosePineDark.success, size: 28),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
@@ -448,16 +503,16 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                             children: [
                               Text(
                                 '$_confirmationsCount Confirmaciones Ciudadanas',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: Color(0xFF1E3A1E),
+                                  color: context.textPrimaryColor,
                                   fontSize: 14,
                                 ),
                               ),
                               const SizedBox(height: 2),
-                              const Text(
+                              Text(
                                 'Los ciudadanos avalan la veracidad de este reporte.',
-                                style: TextStyle(fontSize: 12, color: Colors.black54),
+                                style: TextStyle(fontSize: 12, color: context.subtleColor),
                               ),
                             ],
                           ),

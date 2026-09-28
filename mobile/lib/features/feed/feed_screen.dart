@@ -3,6 +3,8 @@ import '../../core/networking/api_client.dart';
 import '../../shared/models/models.dart';
 import '../../shared/widgets/incident_card.dart';
 
+import '../../core/theme/app_theme.dart';
+
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
 
@@ -35,24 +37,33 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
       _apiClient.getCategories(),
     ]);
 
-    setState(() {
-      _recentPosts = results[0] as List<PostModel>;
-      _nearbyPosts = results[1] as List<PostModel>;
-      _categories = results[2] as List<CategoryModel>;
-      _loading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _recentPosts = results[0] as List<PostModel>;
+        _nearbyPosts = results[1] as List<PostModel>;
+        _categories = results[2] as List<CategoryModel>;
+        _loading = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('RDReporta'),
+        title: Text(
+          'RDReporta',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0.5,
+            color: theme.colorScheme.primary,
+          ),
+        ),
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: Colors.white,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
+          indicatorWeight: 2.5,
           tabs: const [
             Tab(text: 'Para Ti'),
             Tab(text: 'Cerca de Mí'),
@@ -64,11 +75,12 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
         children: [
           // Category chips filter
           if (_categories.isNotEmpty)
-            SizedBox(
-              height: 48,
+            Container(
+              height: 50,
+              padding: const EdgeInsets.symmetric(vertical: 6),
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: _categories.length + 1,
                 itemBuilder: (context, index) {
                   if (index == 0) {
@@ -78,6 +90,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
                       child: FilterChip(
                         label: const Text('Todas'),
                         selected: isAll,
+                        showCheckmark: false,
                         onSelected: (_) {
                           setState(() => _selectedCategory = null);
                           _loadInitialData();
@@ -92,6 +105,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
                     child: FilterChip(
                       label: Text(cat.name),
                       selected: isSelected,
+                      showCheckmark: false,
                       onSelected: (_) {
                         setState(() => _selectedCategory = isSelected ? null : cat.id);
                         _loadInitialData();
@@ -104,7 +118,12 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
 
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator())
+                ? Center(
+                    child: CircularProgressIndicator(
+                      color: theme.colorScheme.primary,
+                      strokeWidth: 2.5,
+                    ),
+                  )
                 : TabBarView(
                     controller: _tabController,
                     children: [
@@ -125,11 +144,15 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.feed_outlined, size: 54, color: Colors.grey[400]),
+            Icon(Icons.feed_outlined, size: 54, color: context.mutedColor),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'No hay reportes en esta sección',
-              style: TextStyle(fontSize: 16, color: Colors.grey, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                fontSize: 15,
+                color: context.subtleColor,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),
@@ -137,6 +160,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
     }
 
     return RefreshIndicator(
+      color: Theme.of(context).colorScheme.primary,
       onRefresh: _loadInitialData,
       child: ListView.builder(
         padding: const EdgeInsets.only(top: 8, bottom: 80),

@@ -12,11 +12,18 @@ class RdReportaApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'RDReporta',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      home: const SplashScreen(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: AppTheme.themeNotifier,
+      builder: (context, themeMode, _) {
+        return MaterialApp(
+          title: 'RDReporta',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: themeMode,
+          home: const SplashScreen(),
+        );
+      },
     );
   }
 }

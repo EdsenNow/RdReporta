@@ -78,13 +78,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Crear Cuenta'),
-        backgroundColor: Colors.white,
-        foregroundColor: AppTheme.primaryBlue,
-        elevation: 0,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -94,31 +92,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
+                Text(
                   'Únete a RDReporta',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryBlue,
+                    color: theme.colorScheme.primary,
                   ),
                 ),
                 const SizedBox(height: 6),
-                const Text(
+                Text(
                   'Sé parte de la red de ciudadanos que informan y colaboran con su comunidad en República Dominicana.',
-                  style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+                  style: TextStyle(fontSize: 13, color: context.subtleColor),
                 ),
                 const SizedBox(height: 24),
 
                 // Username
                 TextFormField(
                   controller: _usernameController,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'Nombre de usuario',
                     hintText: 'ej. juan_perez',
-                    prefixIcon: const Icon(Icons.person_outline),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    filled: true,
-                    fillColor: const Color(0xFFF8FAFC),
+                    prefixIcon: Icon(Icons.person_outline),
                   ),
                   validator: (val) {
                     if (val == null || val.trim().isEmpty) return 'Ingresa un nombre de usuario';
@@ -132,13 +127,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'Correo electrónico',
                     hintText: 'ejemplo@correo.com',
-                    prefixIcon: const Icon(Icons.email_outlined),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    filled: true,
-                    fillColor: const Color(0xFFF8FAFC),
+                    prefixIcon: Icon(Icons.email_outlined),
                   ),
                   validator: (val) {
                     if (val == null || val.trim().isEmpty) return 'Ingresa tu correo';
@@ -151,12 +143,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 // Province Dropdown
                 DropdownButtonFormField<String>(
                   initialValue: _selectedProvince,
-                  decoration: InputDecoration(
+                  dropdownColor: context.surfaceColor,
+                  decoration: const InputDecoration(
                     labelText: 'Provincia de residencia',
-                    prefixIcon: const Icon(Icons.location_on_outlined),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    filled: true,
-                    fillColor: const Color(0xFFF8FAFC),
+                    prefixIcon: Icon(Icons.location_on_outlined),
                   ),
                   items: _provinces.map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
                   onChanged: (val) => setState(() => _selectedProvince = val!),
@@ -174,9 +164,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
                       onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                     ),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    filled: true,
-                    fillColor: const Color(0xFFF8FAFC),
                   ),
                   validator: (val) {
                     if (val == null || val.isEmpty) return 'Ingresa tu contraseña';
@@ -190,12 +177,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextFormField(
                   controller: _confirmPasswordController,
                   obscureText: _obscurePassword,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'Confirmar contraseña',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    filled: true,
-                    fillColor: const Color(0xFFF8FAFC),
+                    prefixIcon: Icon(Icons.lock_outline),
                   ),
                   validator: (val) {
                     if (val == null || val.isEmpty) return 'Confirma tu contraseña';
@@ -206,18 +190,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 // Submit Button
                 SizedBox(
-                  height: 52,
+                  height: 50,
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _submitRegister,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.accentRed,
+                      backgroundColor: theme.colorScheme.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     child: _isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                          )
                         : const Text(
                             'Registrarme',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                           ),
                   ),
                 ),
@@ -227,13 +217,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text('¿Ya tienes cuenta? ', style: TextStyle(color: AppTheme.textSecondary)),
+                    Text('¿Ya tienes cuenta? ', style: TextStyle(color: context.subtleColor)),
                     GestureDetector(
                       onTap: () => Navigator.pop(context),
-                      child: const Text(
+                      child: Text(
                         'Inicia sesión',
                         style: TextStyle(
-                          color: AppTheme.primaryBlue,
+                          color: theme.colorScheme.secondary,
                           fontWeight: FontWeight.bold,
                         ),
                       ),

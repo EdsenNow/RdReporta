@@ -61,9 +61,9 @@ class _HomeScreenState extends State<HomeScreen> {
             MaterialPageRoute(builder: (context) => const CreatePostScreen()),
           );
         },
-        backgroundColor: AppTheme.accentRed,
+        backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
-        elevation: 4,
+        elevation: 0,
         shape: const CircleBorder(),
         tooltip: 'Reportar Incidencia',
         child: const Icon(Icons.add_a_photo, size: 26),
@@ -73,16 +73,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildNavItem(IconData outlineIcon, IconData filledIcon, String label, int index) {
     final isSelected = _currentIndex == index;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    final unselectedColor = Theme.of(context).brightness == Brightness.dark
+        ? RosePineDark.muted
+        : RosePineDawn.muted;
+
     return InkWell(
       onTap: () => _onTabTapped(index),
+      borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+        padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               isSelected ? filledIcon : outlineIcon,
-              color: isSelected ? AppTheme.primaryBlue : AppTheme.textSecondary,
+              color: isSelected ? primaryColor : unselectedColor,
               size: 24,
             ),
             const SizedBox(height: 2),
@@ -91,7 +97,7 @@ class _HomeScreenState extends State<HomeScreen> {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? AppTheme.primaryBlue : AppTheme.textSecondary,
+                color: isSelected ? primaryColor : unselectedColor,
               ),
             ),
           ],
