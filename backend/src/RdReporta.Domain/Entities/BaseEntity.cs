@@ -1,0 +1,8 @@
+namespace RdReporta.Domain.Entities;
+
+public abstract class BaseEntity<TId>
+{
+    public TId Id { get; set; } = default!;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+}
