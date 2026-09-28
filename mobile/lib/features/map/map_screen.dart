@@ -23,7 +23,7 @@ class MapScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   const Text(
                     'Visualizador Geoespacial (Google Maps)',
-                    style: TextStyle(fontSize: 16, fontWeight: 'bold'),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 6),
                   const Text(

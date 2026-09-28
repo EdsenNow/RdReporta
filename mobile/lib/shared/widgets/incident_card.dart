@@ -67,7 +67,7 @@ class _IncidentCardState extends State<IncidentCard> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: categoryColor.withOpacity(0.12),
+                    color: categoryColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(

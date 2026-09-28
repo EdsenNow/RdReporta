@@ -20,7 +20,6 @@ class AppTheme {
         primary: primaryBlue,
         secondary: accentRed,
         surface: cardColor,
-        background: backgroundLight,
       ),
       scaffoldBackgroundColor: backgroundLight,
       appBarTheme: const AppBarTheme(
@@ -54,7 +53,7 @@ class AppTheme {
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
         ),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: cardColor,
         elevation: 1,
         shape: RoundedRectangleBorder(

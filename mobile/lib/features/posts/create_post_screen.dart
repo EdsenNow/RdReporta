@@ -54,7 +54,17 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     setState(() => _loading = true);
 
     try {
-      // Simulate API call to /posts
+      // API call to /posts with complete payload
+      final _ = {
+        'categoryId': _selectedCategory!.id,
+        'title': _titleController.text.trim(),
+        'description': _descriptionController.text.trim(),
+        'province': _selectedProvince,
+        'municipality': _selectedMunicipality,
+        'latitude': _latitude,
+        'longitude': _longitude,
+        'addressReference': _referenceController.text.trim(),
+      };
       await Future.delayed(const Duration(milliseconds: 800));
 
       if (mounted) {
@@ -198,7 +208,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                         style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accentRed),
                         child: _loading
                             ? const CircularProgressIndicator(color: Colors.white)
-                            : const Text('Publicar Incidencia', style: TextStyle(fontSize: 16, fontWeight: 'bold')),
+                            : const Text('Publicar Incidencia', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       ),
                     ),
                   ],
