@@ -232,37 +232,111 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildGuestView() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.account_circle_outlined, size: 72, color: Colors.grey),
-            const SizedBox(height: 16),
-            const Text(
-              'Modo Invitado',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
+      child: Column(
+        children: [
+          // 1. Selector de Apariencia y Tema (Rosé Pine / Dawn) - Siempre visible
+          _buildThemeSelectorCard(),
+
+          const SizedBox(height: 12),
+
+          // 2. Tarjeta de Modo Invitado
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24.0),
+            decoration: BoxDecoration(
+              color: context.surfaceColor,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: context.borderColor, width: 1.2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: context.isDarkMode ? 0.25 : 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Estás explorando la comunidad sin iniciar sesión. Crea tu cuenta para sumar puntos de reputación y confirmar reportes.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey),
+            child: Column(
+              children: [
+                CircleAvatar(
+                  radius: 36,
+                  backgroundColor: context.overlayColor,
+                  child: Icon(Icons.account_circle_outlined, size: 48, color: context.mutedColor),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'Modo Invitado',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: context.textPrimaryColor,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Estás explorando la comunidad sin iniciar sesión. Crea tu cuenta para sumar puntos de reputación y confirmar reportes en tu sector.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: context.subtleColor, height: 1.4),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (context) => const LoginScreen()),
+                        (route) => false,
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: context.loveColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Iniciar Sesión o Registrarme', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                  (route) => false,
+          ),
+
+          const SizedBox(height: 12),
+
+          // 3. Tarjeta de Privacidad y Normas
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: context.surfaceColor,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: context.borderColor, width: 1.2),
+            ),
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.shield_outlined, color: context.pineColor),
+              title: Text('Compromiso de Privacidad', style: TextStyle(fontWeight: FontWeight.bold, color: context.textPrimaryColor)),
+              subtitle: Text('RDReporta no comparte coordenadas privadas personales.', style: TextStyle(fontSize: 12, color: context.subtleColor)),
+              trailing: Icon(Icons.chevron_right, color: context.mutedColor),
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Compromiso de Privacidad'),
+                    content: const Text(
+                      'En RDReporta no se revelan tus coordenadas privadas personales ni existen mensajes directos o comentarios públicos. Solo se comparte la información explícita de incidencias ciudadanas.',
+                    ),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(context), child: const Text('Entendido')),
+                    ],
+                  ),
                 );
               },
-              child: const Text('Iniciar Sesión o Registrarme'),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -271,12 +345,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final initials = _user!.username.isNotEmpty ? _user!.username.substring(0, 1).toUpperCase() : 'RD';
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20.0),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
       child: Column(
         children: [
           CircleAvatar(
             radius: 46,
-            backgroundColor: Theme.of(context).colorScheme.secondary,
+            backgroundColor: context.pineColor,
             child: Text(
               initials,
               style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
@@ -296,16 +370,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+              color: context.loveColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.25)),
+              border: Border.all(color: context.loveColor.withValues(alpha: 0.25)),
             ),
             child: Text(
               'Nivel: ${_user!.reputationLevel}',
-              style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w600, fontSize: 13),
+              style: TextStyle(color: context.loveColor, fontWeight: FontWeight.w600, fontSize: 13),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
 
           // Metrics row
           Row(
@@ -316,125 +390,225 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _buildStat('Reputación', '${_user!.reputationScore} pts'),
             ],
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 16),
+
+          // Selector de Apariencia y Tema (Rosé Pine)
+          _buildThemeSelectorCard(),
+
+          const SizedBox(height: 12),
 
           // Details List
-          ListTile(
-            leading: Icon(Icons.location_on_outlined, color: Theme.of(context).colorScheme.secondary),
-            title: Text('Provincia: ${_user!.province ?? "República Dominicana"}'),
-            subtitle: _user!.municipality != null ? Text('Municipio: ${_user!.municipality}') : null,
-          ),
-          ListTile(
-            leading: Icon(Icons.calendar_today_outlined, color: Theme.of(context).colorScheme.secondary),
-            title: const Text('Miembro de la comunidad desde'),
-            subtitle: Text('${_user!.createdAt.day}/${_user!.createdAt.month}/${_user!.createdAt.year}'),
-          ),
-          ListTile(
-            leading: Icon(Icons.shield_outlined, color: Theme.of(context).colorScheme.secondary),
-            title: const Text('Normas comunitarias y Privacidad'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Compromiso de Privacidad'),
-                  content: const Text(
-                    'En RDReporta no se revelan tus coordenadas privadas personales ni existen mensajes directos o comentarios públicos. Solo se comparte la información explícita de incidencias ciudadanas.',
-                  ),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(context), child: const Text('Entendido')),
-                  ],
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: context.surfaceColor,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: context.borderColor, width: 1.2),
+            ),
+            child: Column(
+              children: [
+                ListTile(
+                  leading: Icon(Icons.location_on_outlined, color: context.pineColor),
+                  title: Text('Provincia: ${_user!.province ?? "República Dominicana"}', style: TextStyle(color: context.textPrimaryColor)),
+                  subtitle: _user!.municipality != null ? Text('Municipio: ${_user!.municipality}', style: TextStyle(color: context.subtleColor)) : null,
                 ),
-              );
-            },
-          ),
-          ListTile(
-            leading: Icon(Icons.palette_outlined, color: Theme.of(context).colorScheme.primary),
-            title: const Text('Tema y Apariencia (Rosé Pine)'),
-            subtitle: Text(_getThemeName(AppTheme.themeNotifier.value)),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: _showThemeSelector,
-          ),
-          const SizedBox(height: 12),
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.red),
-            title: const Text('Cerrar sesión', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
-            onTap: _logout,
+                Divider(color: context.borderColor),
+                ListTile(
+                  leading: Icon(Icons.calendar_today_outlined, color: context.pineColor),
+                  title: Text('Miembro desde', style: TextStyle(color: context.textPrimaryColor)),
+                  subtitle: Text('${_user!.createdAt.day}/${_user!.createdAt.month}/${_user!.createdAt.year}', style: TextStyle(color: context.subtleColor)),
+                ),
+                Divider(color: context.borderColor),
+                ListTile(
+                  leading: Icon(Icons.shield_outlined, color: context.pineColor),
+                  title: Text('Normas comunitarias y Privacidad', style: TextStyle(color: context.textPrimaryColor)),
+                  trailing: Icon(Icons.chevron_right, color: context.mutedColor),
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Compromiso de Privacidad'),
+                        content: const Text(
+                          'En RDReporta no se revelan tus coordenadas privadas personales ni existen mensajes directos o comentarios públicos. Solo se comparte la información explícita de incidencias ciudadanas.',
+                        ),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Entendido')),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+                Divider(color: context.borderColor),
+                ListTile(
+                  leading: const Icon(Icons.logout, color: Colors.red),
+                  title: const Text('Cerrar sesión', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+                  onTap: _logout,
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  String _getThemeName(ThemeMode mode) {
-    switch (mode) {
-      case ThemeMode.light:
-        return 'Rosé Pine Dawn (Claro)';
-      case ThemeMode.dark:
-        return 'Rosé Pine (Oscuro)';
-      case ThemeMode.system:
-        return 'Automático (Sistema)';
-    }
+  Widget _buildThemeSelectorCard() {
+    final currentMode = AppTheme.themeNotifier.value;
+    final isDark = context.isDarkMode;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: context.surfaceColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? const Color(0x26E0DEF4) : context.borderColor,
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: context.loveColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.palette_outlined, size: 20, color: context.loveColor),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Apariencia y Tema',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: context.textPrimaryColor,
+                      ),
+                    ),
+                    Text(
+                      'Personaliza los colores de la aplicación',
+                      style: TextStyle(fontSize: 12, color: context.subtleColor),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Opciones de tema (Oscuro, Claro, Auto)
+          Row(
+            children: [
+              Expanded(
+                child: _buildThemeOptionPill(
+                  title: 'Oscuro',
+                  subtitle: 'Rosé Pine',
+                  icon: Icons.dark_mode_rounded,
+                  isSelected: currentMode == ThemeMode.dark,
+                  onTap: () async {
+                    await AppTheme.setTheme(ThemeMode.dark);
+                    setState(() {});
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildThemeOptionPill(
+                  title: 'Claro',
+                  subtitle: 'Dawn',
+                  icon: Icons.light_mode_rounded,
+                  isSelected: currentMode == ThemeMode.light,
+                  onTap: () async {
+                    await AppTheme.setTheme(ThemeMode.light);
+                    setState(() {});
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildThemeOptionPill(
+                  title: 'Auto',
+                  subtitle: 'Sistema',
+                  icon: Icons.brightness_auto_rounded,
+                  isSelected: currentMode == ThemeMode.system,
+                  onTap: () async {
+                    await AppTheme.setTheme(ThemeMode.system);
+                    setState(() {});
+                  },
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
-  void _showThemeSelector() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Tema de la Aplicación'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
+  Widget _buildThemeOptionPill({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? context.overlayColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected ? context.loveColor : context.borderColor,
+            width: isSelected ? 2.0 : 1.0,
+          ),
+        ),
+        child: Column(
           children: [
-            ListTile(
-              leading: Icon(
-                AppTheme.themeNotifier.value == ThemeMode.dark
-                    ? Icons.radio_button_checked
-                    : Icons.radio_button_unchecked,
-                color: context.loveColor,
-              ),
-              title: const Text('Rosé Pine (Oscuro)'),
-              subtitle: const Text('Paleta oscura de FinanzApp'),
-              onTap: () {
-                AppTheme.setTheme(ThemeMode.dark);
-                Navigator.pop(context);
-                setState(() {});
-              },
+            Icon(
+              icon,
+              size: 22,
+              color: isSelected ? context.loveColor : context.mutedColor,
             ),
-            ListTile(
-              leading: Icon(
-                AppTheme.themeNotifier.value == ThemeMode.light
-                    ? Icons.radio_button_checked
-                    : Icons.radio_button_unchecked,
-                color: context.loveColor,
+            const SizedBox(height: 4),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                color: isSelected ? context.loveColor : context.textPrimaryColor,
               ),
-              title: const Text('Rosé Pine Dawn (Claro)'),
-              subtitle: const Text('Paleta clara minimalista'),
-              onTap: () {
-                AppTheme.setTheme(ThemeMode.light);
-                Navigator.pop(context);
-                setState(() {});
-              },
             ),
-            ListTile(
-              leading: Icon(
-                AppTheme.themeNotifier.value == ThemeMode.system
-                    ? Icons.radio_button_checked
-                    : Icons.radio_button_unchecked,
-                color: context.loveColor,
+            Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 10,
+                color: isSelected ? context.loveColor.withValues(alpha: 0.85) : context.mutedColor,
               ),
-              title: const Text('Automático'),
-              subtitle: const Text('Sigue el sistema operativo'),
-              onTap: () {
-                AppTheme.setTheme(ThemeMode.system);
-                Navigator.pop(context);
-                setState(() {});
-              },
             ),
           ],
         ),
       ),
     );
   }
+
+
 
   Widget _buildStat(String label, String value) {
     final primaryColor = Theme.of(context).colorScheme.primary;

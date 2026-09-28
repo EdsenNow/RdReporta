@@ -167,6 +167,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = context.isDarkMode;
+
     return AtmosphericBackground(
       child: Center(
         child: SingleChildScrollView(
@@ -176,15 +178,15 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 34.0),
               decoration: BoxDecoration(
-                color: const Color(0xFF191724), // FinanzApp auth-card dark background
+                color: context.surfaceColor,
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(
-                  color: const Color(0x1AFFFFFF), // rgba(224, 222, 244, 0.10)
+                  color: isDark ? const Color(0x26E0DEF4) : context.borderColor,
                   width: 1.5,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.45),
+                    color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.08),
                     blurRadius: 30,
                     offset: const Offset(0, 15),
                   ),
@@ -230,22 +232,24 @@ class _LoginScreenState extends State<LoginScreen> {
   // 1. VISTA DE OPCIONES (IDÉNTICA A FINANZAPP)
   // ==========================================
   Widget _buildOptionsView() {
+    final isDark = context.isDarkMode;
+
     return Column(
       key: const ValueKey('options_view'),
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Logo de la App (Cuadrado redondeado color Rosé Love con "RD" en blanco)
+        // Logo de la App
         Center(
           child: Container(
             width: 70,
             height: 70,
             decoration: BoxDecoration(
-              color: const Color(0xFFEB6F92), // Rosa FinanzApp
+              color: context.loveColor,
               borderRadius: BorderRadius.circular(18),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFEB6F92).withValues(alpha: 0.35),
+                  color: context.loveColor.withValues(alpha: 0.35),
                   blurRadius: 18,
                   offset: const Offset(0, 6),
                 ),
@@ -267,38 +271,39 @@ class _LoginScreenState extends State<LoginScreen> {
         const SizedBox(height: 18),
 
         // Título "Bienvenido"
-        const Text(
+        Text(
           'Bienvenido',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 26,
             fontWeight: FontWeight.bold,
-            color: Color(0xFFE0DEF4),
+            color: context.textPrimaryColor,
             letterSpacing: 0.5,
           ),
         ),
         const SizedBox(height: 6),
 
         // Subtítulo "Accede a tu cuenta"
-        const Text(
+        Text(
           'Accede a tu cuenta',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 14,
-            color: Color(0xFF6E6A86),
+            color: context.subtleColor,
           ),
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 30),
 
-        // Botón: Continuar con Google (Fondo claro lavanda, texto oscuro, ícono Google)
+        // Botón: Continuar con Google
         SizedBox(
           height: 50,
           child: ElevatedButton(
             onPressed: _isLoading ? null : _handleGoogleLogin,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFE0DEF4),
-              foregroundColor: const Color(0xFF575279),
+              backgroundColor: isDark ? const Color(0xFFE0DEF4) : const Color(0xFFF4F1EA),
+              foregroundColor: isDark ? const Color(0xFF575279) : const Color(0xFF1F1D2E),
               elevation: 0,
+              side: BorderSide(color: isDark ? Colors.transparent : context.borderColor),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             child: Row(
@@ -306,12 +311,12 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 _buildGoogleIcon(),
                 const SizedBox(width: 10),
-                const Text(
+                Text(
                   'Continuar con Google',
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF575279),
+                    color: isDark ? const Color(0xFF575279) : const Color(0xFF1F1D2E),
                   ),
                 ),
               ],
@@ -320,14 +325,14 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         const SizedBox(height: 12),
 
-        // Botón: Continuar con Apple (Estilo oficial oscuro)
+        // Botón: Continuar con Apple
         SizedBox(
           height: 50,
           child: OutlinedButton(
             onPressed: _isLoading ? null : _handleAppleLogin,
             style: OutlinedButton.styleFrom(
-              backgroundColor: const Color(0xFF151320),
-              side: const BorderSide(color: Color(0x28FFFFFF)),
+              backgroundColor: isDark ? const Color(0xFF151320) : const Color(0xFF1F1D2E),
+              side: BorderSide(color: isDark ? const Color(0x28FFFFFF) : context.borderColor),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             child: Row(
@@ -347,31 +352,31 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 18),
 
         // Separador "o"
         Row(
-          children: const [
-            Expanded(child: Divider(color: Color(0x24FFFFFF), thickness: 1)),
+          children: [
+            Expanded(child: Divider(color: context.borderColor, thickness: 1)),
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: 14.0),
+              padding: const EdgeInsets.symmetric(horizontal: 14.0),
               child: Text(
                 'o',
-                style: TextStyle(fontSize: 13, color: Color(0xFF6E6A86)),
+                style: TextStyle(fontSize: 13, color: context.mutedColor),
               ),
             ),
-            Expanded(child: Divider(color: Color(0x24FFFFFF), thickness: 1)),
+            Expanded(child: Divider(color: context.borderColor, thickness: 1)),
           ],
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 18),
 
-        // Botón: Continuar con correo (Color Rosa #EB6F92 con ícono mail)
+        // Botón: Continuar con correo
         SizedBox(
           height: 50,
           child: ElevatedButton.icon(
             onPressed: () => setState(() => _currentView = AuthView.emailLogin),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFEB6F92),
+              backgroundColor: context.loveColor,
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -394,29 +399,29 @@ class _LoginScreenState extends State<LoginScreen> {
                 MaterialPageRoute(builder: (context) => const HomeScreen()),
               );
             },
-            icon: const Icon(Icons.person_outline, size: 18, color: Color(0xFF6E6A86)),
-            label: const Text(
+            icon: Icon(Icons.person_outline, size: 18, color: context.mutedColor),
+            label: Text(
               'Continuar como invitado',
-              style: TextStyle(color: Color(0xFF6E6A86), fontSize: 13),
+              style: TextStyle(color: context.subtleColor, fontSize: 13, fontWeight: FontWeight.w600),
             ),
           ),
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 20),
 
         // Footer: ¿No tienes cuenta? Regístrate
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
+            Text(
               '¿No tienes cuenta? ',
-              style: TextStyle(color: Color(0xFF6E6A86), fontSize: 13),
+              style: TextStyle(color: context.mutedColor, fontSize: 13),
             ),
             GestureDetector(
               onTap: () => setState(() => _currentView = AuthView.register),
-              child: const Text(
+              child: Text(
                 'Regístrate',
                 style: TextStyle(
-                  color: Color(0xFFEB6F92),
+                  color: context.loveColor,
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
                 ),
@@ -427,10 +432,10 @@ class _LoginScreenState extends State<LoginScreen> {
         const SizedBox(height: 14),
 
         // Footer Legal
-        const Text(
+        Text(
           'Política de Privacidad · Condiciones del Servicio',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 11, color: Color(0xFF575279)),
+          style: TextStyle(fontSize: 11, color: context.mutedColor),
         ),
       ],
     );
@@ -447,20 +452,20 @@ class _LoginScreenState extends State<LoginScreen> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
+          Text(
             'Iniciar Sesión',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: Color(0xFFE0DEF4),
+              color: context.textPrimaryColor,
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             'Ingresa a tu cuenta',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: Color(0xFF6E6A86)),
+            style: TextStyle(fontSize: 14, color: context.subtleColor),
           ),
           const SizedBox(height: 26),
 
@@ -470,7 +475,7 @@ class _LoginScreenState extends State<LoginScreen> {
           TextFormField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
-            style: const TextStyle(color: Color(0xFFE0DEF4), fontSize: 14),
+            style: TextStyle(color: context.textPrimaryColor, fontSize: 14),
             decoration: _buildInputDecoration(
               hint: 'ejemplo@correo.com',
               icon: Icons.email_outlined,
@@ -489,14 +494,14 @@ class _LoginScreenState extends State<LoginScreen> {
           TextFormField(
             controller: _passwordController,
             obscureText: _obscurePassword,
-            style: const TextStyle(color: Color(0xFFE0DEF4), fontSize: 14),
+            style: TextStyle(color: context.textPrimaryColor, fontSize: 14),
             decoration: _buildInputDecoration(
               hint: '••••••••',
               icon: Icons.lock_outline,
               suffix: IconButton(
                 icon: Icon(
                   _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                  color: const Color(0xFF6E6A86),
+                  color: context.mutedColor,
                   size: 20,
                 ),
                 onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
@@ -515,9 +520,9 @@ class _LoginScreenState extends State<LoginScreen> {
             child: TextButton(
               onPressed: () => setState(() => _currentView = AuthView.forgotPassword),
               style: TextButton.styleFrom(padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
-              child: const Text(
+              child: Text(
                 '¿Olvidaste tu contraseña?',
-                style: TextStyle(color: Color(0xFFEB6F92), fontSize: 13),
+                style: TextStyle(color: context.loveColor, fontSize: 13, fontWeight: FontWeight.w600),
               ),
             ),
           ),
@@ -531,16 +536,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 height: 24,
                 child: Checkbox(
                   value: _rememberMe,
-                  activeColor: const Color(0xFFEB6F92),
+                  activeColor: context.loveColor,
                   checkColor: Colors.white,
-                  side: const BorderSide(color: Color(0xFF6E6A86)),
+                  side: BorderSide(color: context.borderColor),
                   onChanged: (val) => setState(() => _rememberMe = val ?? true),
                 ),
               ),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 'Recordar sesión',
-                style: TextStyle(color: Color(0xFF908CAA), fontSize: 13),
+                style: TextStyle(color: context.subtleColor, fontSize: 13),
               ),
             ],
           ),
@@ -552,7 +557,7 @@ class _LoginScreenState extends State<LoginScreen> {
             child: ElevatedButton(
               onPressed: _isLoading ? null : _submitLogin,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFEB6F92),
+                backgroundColor: context.loveColor,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -574,10 +579,10 @@ class _LoginScreenState extends State<LoginScreen> {
           // Botón Volver atrás
           TextButton.icon(
             onPressed: () => setState(() => _currentView = AuthView.options),
-            icon: const Icon(Icons.arrow_back, size: 18, color: Color(0xFF6E6A86)),
-            label: const Text(
+            icon: Icon(Icons.arrow_back, size: 18, color: context.mutedColor),
+            label: Text(
               'Volver atrás',
-              style: TextStyle(color: Color(0xFF6E6A86), fontSize: 13),
+              style: TextStyle(color: context.subtleColor, fontSize: 13),
             ),
           ),
           const SizedBox(height: 16),
@@ -586,16 +591,16 @@ class _LoginScreenState extends State<LoginScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text(
+              Text(
                 '¿No tienes cuenta? ',
-                style: TextStyle(color: Color(0xFF6E6A86), fontSize: 13),
+                style: TextStyle(color: context.mutedColor, fontSize: 13),
               ),
               GestureDetector(
                 onTap: () => setState(() => _currentView = AuthView.register),
-                child: const Text(
+                child: Text(
                   'Regístrate',
                   style: TextStyle(
-                    color: Color(0xFFEB6F92),
+                    color: context.loveColor,
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
                   ),
@@ -619,20 +624,20 @@ class _LoginScreenState extends State<LoginScreen> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
+          Text(
             'Crear Cuenta',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: Color(0xFFE0DEF4),
+              color: context.textPrimaryColor,
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             'Regístrate para comenzar',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: Color(0xFF6E6A86)),
+            style: TextStyle(fontSize: 14, color: context.subtleColor),
           ),
           const SizedBox(height: 22),
 
@@ -640,7 +645,7 @@ class _LoginScreenState extends State<LoginScreen> {
           const SizedBox(height: 6),
           TextFormField(
             controller: _regUsernameController,
-            style: const TextStyle(color: Color(0xFFE0DEF4), fontSize: 14),
+            style: TextStyle(color: context.textPrimaryColor, fontSize: 14),
             decoration: _buildInputDecoration(hint: 'ej. juan_perez', icon: Icons.person_outline),
             validator: (val) {
               if (val == null || val.trim().isEmpty) return 'Ingresa un usuario';
@@ -655,7 +660,7 @@ class _LoginScreenState extends State<LoginScreen> {
           TextFormField(
             controller: _regEmailController,
             keyboardType: TextInputType.emailAddress,
-            style: const TextStyle(color: Color(0xFFE0DEF4), fontSize: 14),
+            style: TextStyle(color: context.textPrimaryColor, fontSize: 14),
             decoration: _buildInputDecoration(hint: 'ejemplo@correo.com', icon: Icons.email_outlined),
             validator: (val) {
               if (val == null || val.trim().isEmpty) return 'Ingresa tu correo';
@@ -669,10 +674,10 @@ class _LoginScreenState extends State<LoginScreen> {
           const SizedBox(height: 6),
           DropdownButtonFormField<String>(
             initialValue: _selectedProvince,
-            dropdownColor: const Color(0xFF1F1D2E),
-            style: const TextStyle(color: Color(0xFFE0DEF4), fontSize: 14),
+            dropdownColor: context.surfaceColor,
+            style: TextStyle(color: context.textPrimaryColor, fontSize: 14),
             decoration: _buildInputDecoration(hint: '', icon: Icons.location_on_outlined),
-            items: _provinces.map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
+            items: _provinces.map((p) => DropdownMenuItem(value: p, child: Text(p, style: TextStyle(color: context.textPrimaryColor)))).toList(),
             onChanged: (val) => setState(() => _selectedProvince = val!),
           ),
           const SizedBox(height: 14),
@@ -682,14 +687,14 @@ class _LoginScreenState extends State<LoginScreen> {
           TextFormField(
             controller: _regPasswordController,
             obscureText: _obscureRegPassword,
-            style: const TextStyle(color: Color(0xFFE0DEF4), fontSize: 14),
+            style: TextStyle(color: context.textPrimaryColor, fontSize: 14),
             decoration: _buildInputDecoration(
               hint: '••••••••',
               icon: Icons.lock_outline,
               suffix: IconButton(
                 icon: Icon(
                   _obscureRegPassword ? Icons.visibility_off : Icons.visibility,
-                  color: const Color(0xFF6E6A86),
+                  color: context.mutedColor,
                   size: 20,
                 ),
                 onPressed: () => setState(() => _obscureRegPassword = !_obscureRegPassword),
@@ -708,14 +713,14 @@ class _LoginScreenState extends State<LoginScreen> {
           TextFormField(
             controller: _regConfirmPasswordController,
             obscureText: _obscureRegConfirm,
-            style: const TextStyle(color: Color(0xFFE0DEF4), fontSize: 14),
+            style: TextStyle(color: context.textPrimaryColor, fontSize: 14),
             decoration: _buildInputDecoration(
               hint: '••••••••',
               icon: Icons.lock_outline,
               suffix: IconButton(
                 icon: Icon(
                   _obscureRegConfirm ? Icons.visibility_off : Icons.visibility,
-                  color: const Color(0xFF6E6A86),
+                  color: context.mutedColor,
                   size: 20,
                 ),
                 onPressed: () => setState(() => _obscureRegConfirm = !_obscureRegConfirm),
@@ -733,7 +738,7 @@ class _LoginScreenState extends State<LoginScreen> {
             child: ElevatedButton(
               onPressed: _isLoading ? null : _submitRegister,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFEB6F92),
+                backgroundColor: context.loveColor,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -754,10 +759,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
           TextButton.icon(
             onPressed: () => setState(() => _currentView = AuthView.options),
-            icon: const Icon(Icons.arrow_back, size: 18, color: Color(0xFF6E6A86)),
-            label: const Text(
+            icon: Icon(Icons.arrow_back, size: 18, color: context.mutedColor),
+            label: Text(
               'Volver atrás',
-              style: TextStyle(color: Color(0xFF6E6A86), fontSize: 13),
+              style: TextStyle(color: context.subtleColor, fontSize: 13),
             ),
           ),
           const SizedBox(height: 14),
@@ -765,16 +770,16 @@ class _LoginScreenState extends State<LoginScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text(
+              Text(
                 '¿Ya tienes cuenta? ',
-                style: TextStyle(color: Color(0xFF6E6A86), fontSize: 13),
+                style: TextStyle(color: context.mutedColor, fontSize: 13),
               ),
               GestureDetector(
                 onTap: () => setState(() => _currentView = AuthView.emailLogin),
-                child: const Text(
+                child: Text(
                   'Inicia Sesión',
                   style: TextStyle(
-                    color: Color(0xFFEB6F92),
+                    color: context.loveColor,
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
                   ),
@@ -798,20 +803,20 @@ class _LoginScreenState extends State<LoginScreen> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
+          Text(
             'Recuperar Contraseña',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: Color(0xFFE0DEF4),
+              color: context.textPrimaryColor,
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             'Ingresa tu correo para restablecerla',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: Color(0xFF6E6A86)),
+            style: TextStyle(fontSize: 14, color: context.subtleColor),
           ),
           const SizedBox(height: 26),
 
@@ -821,15 +826,15 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   const Icon(Icons.mark_email_read_outlined, size: 64, color: RosePineDark.success),
                   const SizedBox(height: 14),
-                  const Text(
+                  Text(
                     '¡Enlace Enviado!',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFE0DEF4)),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.textPrimaryColor),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Hemos enviado el enlace a ${_forgotEmailController.text}. Revisa tu bandeja de entrada.',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 13, color: Color(0xFF908CAA)),
+                    style: TextStyle(fontSize: 13, color: context.subtleColor),
                   ),
                   const SizedBox(height: 22),
                   SizedBox(
@@ -841,7 +846,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         _currentView = AuthView.emailLogin;
                       }),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFEB6F92),
+                        backgroundColor: context.loveColor,
                         foregroundColor: Colors.white,
                         elevation: 0,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -858,7 +863,7 @@ class _LoginScreenState extends State<LoginScreen> {
             TextFormField(
               controller: _forgotEmailController,
               keyboardType: TextInputType.emailAddress,
-              style: const TextStyle(color: Color(0xFFE0DEF4), fontSize: 14),
+              style: TextStyle(color: context.textPrimaryColor, fontSize: 14),
               decoration: _buildInputDecoration(hint: 'ejemplo@correo.com', icon: Icons.email_outlined),
               validator: (val) {
                 if (val == null || val.trim().isEmpty) return 'Ingresa tu correo';
@@ -873,7 +878,7 @@ class _LoginScreenState extends State<LoginScreen> {
               child: ElevatedButton(
                 onPressed: _submitRecovery,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFEB6F92),
+                  backgroundColor: context.loveColor,
                   foregroundColor: Colors.white,
                   elevation: 0,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -888,10 +893,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
             TextButton.icon(
               onPressed: () => setState(() => _currentView = AuthView.emailLogin),
-              icon: const Icon(Icons.arrow_back, size: 18, color: Color(0xFF6E6A86)),
-              label: const Text(
+              icon: Icon(Icons.arrow_back, size: 18, color: context.mutedColor),
+              label: Text(
                 'Volver a Iniciar Sesión',
-                style: TextStyle(color: Color(0xFF6E6A86), fontSize: 13),
+                style: TextStyle(color: context.subtleColor, fontSize: 13),
               ),
             ),
           ],
@@ -905,10 +910,10 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildInputLabel(String text) {
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 13,
-        fontWeight: FontWeight.w500,
-        color: Color(0xFF908CAA),
+        fontWeight: FontWeight.w600,
+        color: context.subtleColor,
       ),
     );
   }
@@ -920,31 +925,31 @@ class _LoginScreenState extends State<LoginScreen> {
   }) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(color: Color(0xFF575279), fontSize: 13),
-      prefixIcon: Icon(icon, color: const Color(0xFF6E6A86), size: 20),
+      hintStyle: TextStyle(color: context.mutedColor, fontSize: 13),
+      prefixIcon: Icon(icon, color: context.mutedColor, size: 20),
       suffixIcon: suffix,
       filled: true,
-      fillColor: const Color(0xFF1F1D2E), // Fondo inputs en FinanzApp
+      fillColor: context.overlayColor,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
+        borderSide: BorderSide(color: context.borderColor),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0x1AFFFFFF)),
+        borderSide: BorderSide(color: context.borderColor),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFEB6F92), width: 1.5),
+        borderSide: BorderSide(color: context.loveColor, width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFEB6F92)),
+        borderSide: BorderSide(color: context.loveColor),
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFEB6F92), width: 1.5),
+        borderSide: BorderSide(color: context.loveColor, width: 1.5),
       ),
     );
   }

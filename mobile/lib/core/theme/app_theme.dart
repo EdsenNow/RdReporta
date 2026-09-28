@@ -22,21 +22,21 @@ class RosePineDark {
 }
 
 class RosePineDawn {
-  static const Color base = Color(0xFFFAF4ED);
-  static const Color surface = Color(0xFFFFFAF3);
-  static const Color overlay = Color(0xFFF4EDE8);
-  static const Color muted = Color(0xFF9893A5);
-  static const Color subtle = Color(0xFF797593);
-  static const Color text = Color(0xFF575279);
-  static const Color love = Color(0xFFB4637A); // Red / Accent
-  static const Color gold = Color(0xFFEA9D34); // Warning
-  static const Color rose = Color(0xFFD7827E);
-  static const Color pine = Color(0xFF286983); // Pine / Blue brand
-  static const Color foam = Color(0xFF56949F); // Teal
-  static const Color iris = Color(0xFF9C6BD7); // Purple
-  static const Color success = Color(0xFF2D957B); // Success / Confirmo (FinanzApp)
-  static const Color border = Color(0xFFF2E9E1);
-  static const Color borderHover = Color(0xFFE6DED6);
+  static const Color base = Color(0xFFF4F1EA); // Soft warm canvas with high contrast against white cards
+  static const Color surface = Color(0xFFFFFFFF); // Pure crisp white for cards, docks, and modals
+  static const Color overlay = Color(0xFFE8E3DB); // Clear, distinct chip and input background
+  static const Color muted = Color(0xFF6B667D); // Deep readable slate gray
+  static const Color subtle = Color(0xFF433F5A); // Strong, legible slate for unselected tabs & subtitles
+  static const Color text = Color(0xFF1F1D2E); // Deep ink / charcoal for maximum readability
+  static const Color love = Color(0xFFD9446C); // Vibrant raspberry rose
+  static const Color gold = Color(0xFFD97706); // Rich amber
+  static const Color rose = Color(0xFFC45A55);
+  static const Color pine = Color(0xFF1E5B73); // Deep pine blue brand
+  static const Color foam = Color(0xFF2B7886); // Teal
+  static const Color iris = Color(0xFF7C3AED); // Purple
+  static const Color success = Color(0xFF168058); // Forest green
+  static const Color border = Color(0xFFDCD6CC); // Clearly defined border for cards
+  static const Color borderHover = Color(0xFFC5BDAF);
 }
 
 class AppTheme {
@@ -87,14 +87,14 @@ class AppTheme {
   static const Color primaryBlue = Color(0xFF31748F); // Pine
   static const Color primaryBlueLight = Color(0xFF56949F); // Foam
   static const Color accentRed = Color(0xFFEB6F92); // Love
-  static const Color backgroundLight = Color(0xFFFAF4ED); // Dawn base
-  static const Color cardColor = Color(0xFFFFFAF3); // Dawn surface
-  static const Color textPrimary = Color(0xFF575279); // Dawn text
-  static const Color textSecondary = Color(0xFF797593); // Dawn subtle
-  static const Color borderSubtle = Color(0xFFF2E9E1); // Dawn border
-  static const Color confirmationGreen = Color(0xFF2D957B); // Success (FinanzApp)
+  static const Color backgroundLight = Color(0xFFF4F1EA); // Dawn base
+  static const Color cardColor = Color(0xFFFFFFFF); // Dawn surface
+  static const Color textPrimary = Color(0xFF1F1D2E); // Dawn text
+  static const Color textSecondary = Color(0xFF433F5A); // Dawn subtle
+  static const Color borderSubtle = Color(0xFFDCD6CC); // Dawn border
+  static const Color confirmationGreen = Color(0xFF168058); // Success
 
-  // --- TEMA CLARO (Rosé Pine Dawn) ---
+  // --- TEMA CLARO (Rosé Pine Dawn - Alto Contraste) ---
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
@@ -114,8 +114,8 @@ class AppTheme {
       appBarTheme: const AppBarTheme(
         backgroundColor: RosePineDawn.surface,
         foregroundColor: RosePineDawn.text,
-        elevation: 0,
-        scrolledUnderElevation: 0.5,
+        elevation: 0.5,
+        scrolledUnderElevation: 1.0,
         centerTitle: true,
         titleTextStyle: TextStyle(
           color: RosePineDawn.text,
@@ -165,7 +165,7 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: RosePineDawn.border, width: 1),
+          side: const BorderSide(color: RosePineDawn.border, width: 1.2),
         ),
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
@@ -175,22 +175,22 @@ class AppTheme {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: RosePineDawn.border),
+          borderSide: const BorderSide(color: RosePineDawn.border, width: 1.2),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: RosePineDawn.border),
+          borderSide: const BorderSide(color: RosePineDawn.border, width: 1.2),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: RosePineDawn.love, width: 1.5),
         ),
-        labelStyle: const TextStyle(color: RosePineDawn.subtle),
+        labelStyle: const TextStyle(color: RosePineDawn.subtle, fontWeight: FontWeight.w500),
         hintStyle: const TextStyle(color: RosePineDawn.muted),
       ),
       tabBarTheme: const TabBarThemeData(
         labelColor: RosePineDawn.love,
-        unselectedLabelColor: RosePineDawn.muted,
+        unselectedLabelColor: RosePineDawn.subtle,
         indicatorColor: RosePineDawn.love,
         indicatorSize: TabBarIndicatorSize.tab,
       ),
@@ -205,20 +205,20 @@ class AppTheme {
         backgroundColor: RosePineDawn.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: RosePineDawn.border),
+          side: const BorderSide(color: RosePineDawn.border, width: 1.2),
         ),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: RosePineDawn.overlay,
         selectedColor: RosePineDawn.love.withValues(alpha: 0.15),
-        side: const BorderSide(color: RosePineDawn.border),
+        side: const BorderSide(color: RosePineDawn.border, width: 1.2),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        labelStyle: const TextStyle(fontSize: 12, color: RosePineDawn.text),
+        labelStyle: const TextStyle(fontSize: 12, color: RosePineDawn.text, fontWeight: FontWeight.w600),
       ),
       dividerColor: RosePineDawn.border,
       textTheme: const TextTheme(
         titleLarge: TextStyle(color: RosePineDawn.text, fontWeight: FontWeight.bold),
-        titleMedium: TextStyle(color: RosePineDawn.text, fontWeight: FontWeight.w600),
+        titleMedium: TextStyle(color: RosePineDawn.text, fontWeight: FontWeight.w700),
         bodyLarge: TextStyle(color: RosePineDawn.text),
         bodyMedium: TextStyle(color: RosePineDawn.subtle),
       ),

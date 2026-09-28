@@ -1,26 +1,40 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/app_theme.dart';
 
-/// Fondo atmosférico con orbes de luz desenfocados idéntico a FinanzApp.
+/// Fondo atmosférico adaptativo (Modo Oscuro / Modo Claro) con orbes de luz
+/// desenfocados y botón de cambio de tema superior.
 class AtmosphericBackground extends StatelessWidget {
   final Widget child;
+  final bool showThemeToggle;
 
-  const AtmosphericBackground({super.key, required this.child});
+  const AtmosphericBackground({
+    super.key,
+    required this.child,
+    this.showThemeToggle = true,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final isDark = context.isDarkMode;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF13111C),
+      backgroundColor: isDark ? const Color(0xFF13111C) : const Color(0xFFF4F1EA),
       body: Stack(
         children: [
-          // 1. Degradado base oscuro
+          // 1. Degradado base adaptativo
           Positioned.fill(
             child: Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [
-                    Color(0xFF110F1A), // darker
-                    Color(0xFF191724), // dark
-                  ],
+                  colors: isDark
+                      ? const [
+                          Color(0xFF110F1A), // Darker
+                          Color(0xFF191724), // Base
+                        ]
+                      : const [
+                          Color(0xFFFAF7F2), // Light warm top
+                          Color(0xFFEDE8E0), // Soft cream bottom
+                        ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -28,10 +42,10 @@ class AtmosphericBackground extends StatelessWidget {
             ),
           ),
 
-          // 2. Orbes luminosos y etéreos (Rosé Pine: Love, Pine, Iris, Gold)
+          // 2. Orbes luminosos adaptativos (Rosé Pine: Love, Pine, Iris, Gold)
           Positioned.fill(
             child: CustomPaint(
-              painter: _OrbsBackgroundPainter(),
+              painter: _OrbsBackgroundPainter(isDark: isDark),
             ),
           ),
 
@@ -39,6 +53,43 @@ class AtmosphericBackground extends StatelessWidget {
           SafeArea(
             child: child,
           ),
+
+          // 4. Botón flotante para alternar tema (Claro / Oscuro)
+          if (showThemeToggle)
+            Positioned(
+              top: 14,
+              right: 18,
+              child: SafeArea(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1F1D2E) : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isDark ? const Color(0x44EB6F92) : const Color(0xFFDCD6CC),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: IconButton(
+                    icon: Icon(
+                      isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                      color: isDark ? const Color(0xFFEB6F92) : const Color(0xFFD9446C),
+                      size: 20,
+                    ),
+                    tooltip: isDark ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro',
+                    onPressed: () {
+                      AppTheme.toggleTheme();
+                    },
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -46,17 +97,24 @@ class AtmosphericBackground extends StatelessWidget {
 }
 
 class _OrbsBackgroundPainter extends CustomPainter {
+  final bool isDark;
+
+  _OrbsBackgroundPainter({required this.isDark});
+
   @override
   void paint(Canvas canvas, Size size) {
     final width = size.width;
     final height = size.height;
 
+    final alpha1 = isDark ? 0.28 : 0.12;
+    final alpha2 = isDark ? 0.08 : 0.03;
+
     // Orbe 1: Rosa / Love (#EB6F92) - Superior Derecho
     final paint1 = Paint()
       ..shader = RadialGradient(
         colors: [
-          const Color(0xFFEB6F92).withValues(alpha: 0.28),
-          const Color(0xFFEB6F92).withValues(alpha: 0.08),
+          const Color(0xFFEB6F92).withValues(alpha: alpha1),
+          const Color(0xFFEB6F92).withValues(alpha: alpha2),
           Colors.transparent,
         ],
         stops: const [0.0, 0.45, 0.75],
@@ -70,8 +128,8 @@ class _OrbsBackgroundPainter extends CustomPainter {
     final paint2 = Paint()
       ..shader = RadialGradient(
         colors: [
-          const Color(0xFF31748F).withValues(alpha: 0.26),
-          const Color(0xFF31748F).withValues(alpha: 0.07),
+          const Color(0xFF31748F).withValues(alpha: isDark ? 0.26 : 0.10),
+          const Color(0xFF31748F).withValues(alpha: isDark ? 0.07 : 0.02),
           Colors.transparent,
         ],
         stops: const [0.0, 0.45, 0.75],
@@ -85,8 +143,8 @@ class _OrbsBackgroundPainter extends CustomPainter {
     final paint3 = Paint()
       ..shader = RadialGradient(
         colors: [
-          const Color(0xFFC4A7E7).withValues(alpha: 0.18),
-          const Color(0xFFC4A7E7).withValues(alpha: 0.05),
+          const Color(0xFFC4A7E7).withValues(alpha: isDark ? 0.18 : 0.08),
+          const Color(0xFFC4A7E7).withValues(alpha: isDark ? 0.05 : 0.02),
           Colors.transparent,
         ],
         stops: const [0.0, 0.45, 0.70],
@@ -100,8 +158,8 @@ class _OrbsBackgroundPainter extends CustomPainter {
     final paint4 = Paint()
       ..shader = RadialGradient(
         colors: [
-          const Color(0xFFF6C177).withValues(alpha: 0.16),
-          const Color(0xFFF6C177).withValues(alpha: 0.04),
+          const Color(0xFFF6C177).withValues(alpha: isDark ? 0.16 : 0.08),
+          const Color(0xFFF6C177).withValues(alpha: isDark ? 0.04 : 0.02),
           Colors.transparent,
         ],
         stops: const [0.0, 0.45, 0.70],
@@ -113,5 +171,5 @@ class _OrbsBackgroundPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _OrbsBackgroundPainter oldDelegate) => oldDelegate.isDark != isDark;
 }
