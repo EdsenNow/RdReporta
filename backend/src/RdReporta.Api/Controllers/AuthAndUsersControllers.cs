@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using RdReporta.Application.Common.Interfaces;
 using RdReporta.Application.DTOs;
 using RdReporta.Application.Services;
@@ -8,6 +9,7 @@ namespace RdReporta.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[EnableRateLimiting("auth-policy")]
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;

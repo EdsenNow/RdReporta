@@ -29,7 +29,18 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
 // 4. JWT Authentication
-var jwtSecretKey = builder.Configuration["Jwt:SecretKey"] ?? "RDReporta_UltraSecure_SuperSecretKey_2026_DevelopmentOnly_ChangeInProduction!@#$";
+var defaultDevSecret = "RDReporta_UltraSecure_SuperSecretKey_2026_DevelopmentOnly_ChangeInProduction!@#$";
+var jwtSecretKey = builder.Configuration["Jwt:SecretKey"];
+
+if (string.IsNullOrWhiteSpace(jwtSecretKey) || jwtSecretKey == defaultDevSecret)
+{
+    if (!builder.Environment.IsDevelopment())
+    {
+        throw new InvalidOperationException("CRITICAL SECURITY ERROR: The JWT SecretKey must be explicitly set via environment variable or production secret store in non-development environments.");
+    }
+    jwtSecretKey = defaultDevSecret;
+}
+
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "RDReportaApi";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "RDReportaApp";
 
@@ -40,7 +51,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
-    options.RequireHttpsMetadata = false; // Dev environment
+    options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
     options.SaveToken = true;
     options.TokenValidationParameters = new TokenValidationParameters
     {
@@ -57,14 +68,62 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
-// 5. CORS policy for Flutter mobile and React admin
+// 5. Rate Limiting for brute-force and DDoS / spam mitigation
+builder.Services.AddRateLimiter(options =>
+{
+    // Auth policy: 10 requests per minute per IP for login/registration
+    options.AddPolicy("auth-policy", httpContext =>
+        System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "global_auth",
+            factory: _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
+
+    // Posts creation policy: 20 posts per minute per client
+    options.AddPolicy("posts-policy", httpContext =>
+        System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.User?.Identity?.Name ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "global_posts",
+            factory: _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 20,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
+
+    options.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        context.HttpContext.Response.ContentType = "application/json";
+        await context.HttpContext.Response.WriteAsync(
+            "{\"success\":false,\"message\":\"Límite de solicitudes alcanzado. Por favor, espere un momento antes de reintentar.\"}", 
+            token);
+    };
+});
+
+// 6. CORS policy for Flutter mobile and React admin
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyHeader()
-              .AllowAnyMethod();
+        if (builder.Environment.IsDevelopment())
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        }
+        else
+        {
+            policy.WithOrigins(
+                    builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() 
+                    ?? new[] { "https://admin.rdreporta.do" })
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        }
     });
 });
 
@@ -108,8 +167,16 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseStaticFiles(); // Serve uploaded images in wwwroot
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        ctx.Context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+    }
+});
+
 app.UseCors("AllowAll");
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();

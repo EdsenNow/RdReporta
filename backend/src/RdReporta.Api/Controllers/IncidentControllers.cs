@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using RdReporta.Application.Common.Interfaces;
 using RdReporta.Application.DTOs;
 using RdReporta.Application.Services;
@@ -22,6 +23,7 @@ public class PostsController : ControllerBase
 
     [Authorize]
     [HttpPost]
+    [EnableRateLimiting("posts-policy")]
     public async Task<IActionResult> CreatePost([FromBody] CreatePostRequest request, CancellationToken ct)
     {
         if (_currentUserService.UserId == null) return Unauthorized();
@@ -172,6 +174,7 @@ public class ModerationController : ControllerBase
 
 [ApiController]
 [Route("api/[controller]")]
+[EnableRateLimiting("posts-policy")]
 public class UploadsController : ControllerBase
 {
     private readonly IStorageService _storageService;
@@ -203,9 +206,15 @@ public class UploadsController : ControllerBase
             return BadRequest(new { success = false, message = "Formato de imagen no permitido (.jpg, .jpeg, .png, .webp)." });
         }
 
-        using var stream = file.OpenReadStream();
-        var url = await _storageService.UploadFileAsync(stream, file.FileName, file.ContentType, ct);
-
-        return Ok(new { success = true, url });
+        try
+        {
+            using var stream = file.OpenReadStream();
+            var url = await _storageService.UploadFileAsync(stream, file.FileName, file.ContentType, ct);
+            return Ok(new { success = true, url });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
     }
 }

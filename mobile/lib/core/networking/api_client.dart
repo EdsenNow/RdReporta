@@ -210,4 +210,42 @@ class ApiClient {
       return false;
     }
   }
+
+  Future<Map<String, dynamic>> createPost({
+    required int categoryId,
+    required String title,
+    required String description,
+    required double latitude,
+    required double longitude,
+    required String province,
+    required String municipality,
+    String? addressReference,
+    List<String>? imageUrls,
+  }) async {
+    try {
+      final res = await _dio.post(
+        ApiConstants.createPost,
+        data: {
+          'categoryId': categoryId,
+          'title': title,
+          'description': description,
+          'latitude': latitude,
+          'longitude': longitude,
+          'province': province,
+          'municipality': municipality,
+          'addressReference': addressReference,
+          'imageUrls': imageUrls ?? [],
+        },
+      );
+      if (res.data['success'] == true) {
+        return {'success': true, 'data': res.data['data']};
+      }
+      return {'success': false, 'message': res.data['message'] ?? 'Error al publicar reporte'};
+    } on DioException catch (e) {
+      final msg = e.response?.data?['message'] ?? 'Error de conexión con el servidor';
+      return {'success': false, 'message': msg};
+    } catch (_) {
+      return {'success': false, 'message': 'Ocurrió un error inesperado'};
+    }
+  }
 }

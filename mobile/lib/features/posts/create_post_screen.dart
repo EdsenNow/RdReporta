@@ -54,32 +54,42 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     setState(() => _loading = true);
 
     try {
-      // API call to /posts with complete payload
-      final _ = {
-        'categoryId': _selectedCategory!.id,
-        'title': _titleController.text.trim(),
-        'description': _descriptionController.text.trim(),
-        'province': _selectedProvince,
-        'municipality': _selectedMunicipality,
-        'latitude': _latitude,
-        'longitude': _longitude,
-        'addressReference': _referenceController.text.trim(),
-      };
-      await Future.delayed(const Duration(milliseconds: 800));
+      final res = await _apiClient.createPost(
+        categoryId: _selectedCategory!.id,
+        title: _titleController.text.trim(),
+        description: _descriptionController.text.trim(),
+        province: _selectedProvince,
+        municipality: _selectedMunicipality,
+        latitude: _latitude,
+        longitude: _longitude,
+        addressReference: _referenceController.text.trim().isNotEmpty ? _referenceController.text.trim() : null,
+      );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('¡Reporte publicado con éxito! Gracias por tu colaboración.'),
-            backgroundColor: AppTheme.confirmationGreen,
-          ),
-        );
-        Navigator.pop(context);
+        if (res['success'] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('¡Reporte publicado con éxito! Gracias por tu colaboración ciudadana.'),
+              backgroundColor: AppTheme.confirmationGreen,
+            ),
+          );
+          Navigator.pop(context, true);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(res['message']?.toString() ?? 'Error al publicar reporte.'),
+              backgroundColor: AppTheme.accentRed,
+            ),
+          );
+        }
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al enviar el reporte.')),
+          const SnackBar(
+            content: Text('Error inesperado al conectar con el servidor.'),
+            backgroundColor: AppTheme.accentRed,
+          ),
         );
       }
     } finally {

@@ -96,6 +96,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
             entity.HasIndex(p => p.CreatedAt);
             entity.HasIndex(p => p.Province);
+            entity.HasIndex(p => new { p.Status, p.CreatedAt });
+            entity.HasIndex(p => new { p.Status, p.CategoryId, p.CreatedAt });
 
             entity.HasOne(p => p.User)
                 .WithMany(u => u.Posts)
@@ -147,6 +149,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
             // Unique confirmation per user per post
             entity.HasIndex(c => new { c.PostId, c.UserId }).IsUnique();
+            entity.HasIndex(c => c.UserId);
 
             entity.Property(c => c.UserCoordinates)
                 .HasColumnType("geography(Point, 4326)");
