@@ -1,79 +1,451 @@
 import 'package:flutter/material.dart';
+import '../../core/networking/api_client.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/models/models.dart';
+import '../feed/post_detail_screen.dart';
 
-class MapScreen extends StatelessWidget {
+class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
+
+  @override
+  State<MapScreen> createState() => _MapScreenState();
+}
+
+class _MapScreenState extends State<MapScreen> {
+  final ApiClient _apiClient = ApiClient();
+  
+  List<CategoryModel> _categories = [];
+  CategoryModel? _selectedCategory;
+  List<PostMapPinModel> _pins = [];
+  bool _loading = true;
+  bool _showRadarList = false;
+  PostMapPinModel? _selectedPin;
+
+  // Bounding box para República Dominicana
+  static const double minLat = 17.5;
+  static const double maxLat = 20.0;
+  static const double minLng = -72.0;
+  static const double maxLng = -68.3;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _loading = true);
+    final results = await Future.wait([
+      _apiClient.getCategories(),
+      _apiClient.getMapPins(
+        minLat: minLat,
+        maxLat: maxLat,
+        minLng: minLng,
+        maxLng: maxLng,
+        categoryId: _selectedCategory?.id,
+      ),
+    ]);
+
+    if (mounted) {
+      setState(() {
+        _categories = results[0] as List<CategoryModel>;
+        _pins = results[1] as List<PostMapPinModel>;
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _filterCategory(CategoryModel? category) async {
+    setState(() {
+      _selectedCategory = category;
+      _loading = true;
+      _selectedPin = null;
+    });
+
+    final pins = await _apiClient.getMapPins(
+      minLat: minLat,
+      maxLat: maxLat,
+      minLng: minLng,
+      maxLng: maxLng,
+      categoryId: category?.id,
+    );
+
+    if (mounted) {
+      setState(() {
+        _pins = pins;
+        _loading = false;
+      });
+    }
+  }
+
+  Color _parseColor(String hex) {
+    try {
+      return Color(int.parse(hex.replaceFirst('#', '0xFF')));
+    } catch (_) {
+      return AppTheme.primaryBlue;
+    }
+  }
+
+  void _showPinPreview(PostMapPinModel pin) {
+    setState(() => _selectedPin = pin);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mapa de Incidencias RD'),
+        title: const Text('Mapa Geoespacial RD'),
+        actions: [
+          IconButton(
+            icon: Icon(_showRadarList ? Icons.map : Icons.view_list_rounded),
+            tooltip: _showRadarList ? 'Ver Mapa' : 'Ver Lista Geoespacial',
+            onPressed: () => setState(() => _showRadarList = !_showRadarList),
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadData,
+          ),
+        ],
       ),
       body: Stack(
         children: [
-          // Map placeholder or Google Map widget
-          Container(
-            color: const Color(0xFFE2E8F0),
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+          // 1. Contenido Principal: Mapa Interactivo o Lista Radar
+          _showRadarList ? _buildRadarListView() : _buildInteractiveMapCanvas(),
+
+          // 2. Filtros de Categorías Flotantes
+          Positioned(
+            top: 14,
+            left: 12,
+            right: 12,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
                 children: [
-                  const Icon(Icons.map_outlined, size: 72, color: AppTheme.primaryBlue),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Visualizador Geoespacial (Google Maps)',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  _buildCategoryChip(
+                    label: 'Todas (${_pins.length})',
+                    isSelected: _selectedCategory == null,
+                    color: AppTheme.primaryBlue,
+                    onTap: () => _filterCategory(null),
                   ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'PostGIS + WGS84 Coordenadas Activas',
-                    style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
-                  ),
+                  ..._categories.map((c) {
+                    final color = _parseColor(c.colorHex);
+                    return _buildCategoryChip(
+                      label: c.name,
+                      isSelected: _selectedCategory?.id == c.id,
+                      color: color,
+                      onTap: () => _filterCategory(c),
+                    );
+                  }),
                 ],
               ),
             ),
           ),
 
-          // Floating filter pills at top
-          Positioned(
-            top: 16,
-            left: 16,
-            right: 16,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _buildChip('Todos los filtros', true),
-                  _buildChip('Accidentes', false),
-                  _buildChip('Inundaciones', false),
-                  _buildChip('Tránsito', false),
-                ],
+          // 3. Indicador de carga
+          if (_loading)
+            const Positioned(
+              top: 70,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Card(
+                  elevation: 4,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Text('Cargando incidencias geolocalizadas...', style: TextStyle(fontSize: 12)),
+                  ),
+                ),
               ),
             ),
-          ),
+
+          // 4. Tarjeta Flotante de Incidencia Seleccionada
+          if (_selectedPin != null && !_showRadarList)
+            Positioned(
+              bottom: 24,
+              left: 16,
+              right: 16,
+              child: _buildPinDetailCard(_selectedPin!),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildChip(String label, bool active) {
+  Widget _buildInteractiveMapCanvas() {
     return Container(
-      margin: const EdgeInsets.only(right: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: active ? AppTheme.primaryBlue : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
+      color: const Color(0xFFE5EDF5),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          final height = constraints.maxHeight;
+
+          return InteractiveViewer(
+            boundaryMargin: const EdgeInsets.all(100),
+            minScale: 0.8,
+            maxScale: 3.5,
+            child: SizedBox(
+              width: width,
+              height: height,
+              child: Stack(
+                children: [
+                  // Cuadrícula y mapa temático de fondo de República Dominicana
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: _DominicanMapPainter(),
+                    ),
+                  ),
+
+                  // Pines de incidencias posicionados por GPS (Lat/Lng)
+                  ..._pins.map((pin) {
+                    // Normalizar Lat/Lng a coordenadas relativas en el lienzo (WGS84)
+                    final double normalizedX = (pin.longitude - minLng) / (maxLng - minLng);
+                    // Latitud invertida (Y crece hacia abajo)
+                    final double normalizedY = 1.0 - ((pin.latitude - minLat) / (maxLat - minLat));
+
+                    final double posX = (normalizedX * width).clamp(20.0, width - 40.0);
+                    final double posY = (normalizedY * height).clamp(80.0, height - 120.0);
+
+                    final pinColor = _parseColor(pin.categoryColor);
+                    final isSelected = _selectedPin?.id == pin.id;
+
+                    return Positioned(
+                      left: posX - 18,
+                      top: posY - 36,
+                      child: GestureDetector(
+                        onTap: () => _showPinPreview(pin),
+                        child: AnimatedScale(
+                          scale: isSelected ? 1.3 : 1.0,
+                          duration: const Duration(milliseconds: 200),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: pinColor,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 2),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: pinColor.withValues(alpha: 0.4),
+                                      blurRadius: 8,
+                                      spreadRadius: 2,
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(
+                                  Icons.warning_amber_rounded,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                              ),
+                              Container(
+                                width: 3,
+                                height: 8,
+                                color: pinColor,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          );
+        },
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: active ? Colors.white : AppTheme.textPrimary,
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
+    );
+  }
+
+  Widget _buildRadarListView() {
+    if (_pins.isEmpty) {
+      return const Center(
+        child: Text('No hay incidencias geolocalizadas registradas para este filtro.'),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.only(top: 70, bottom: 20, left: 16, right: 16),
+      itemCount: _pins.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (context, index) {
+        final pin = _pins[index];
+        final pinColor = _parseColor(pin.categoryColor);
+
+        return Card(
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: pinColor.withValues(alpha: 0.15),
+              child: Icon(Icons.location_on, color: pinColor),
+            ),
+            title: Text(pin.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            subtitle: Text(
+              '${pin.categoryName} • ✓ ${pin.confirmationsCount} confirmaciones',
+              style: TextStyle(color: pinColor, fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PostDetailScreen(postId: pin.id),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCategoryChip({
+    required String label,
+    required bool isSelected,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? color : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: isSelected ? color : AppTheme.borderSubtle),
+          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : AppTheme.textPrimary,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
     );
   }
+
+  Widget _buildPinDetailCard(PostMapPinModel pin) {
+    final pinColor = _parseColor(pin.categoryColor);
+
+    return Card(
+      elevation: 6,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: pinColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    pin.categoryName,
+                    style: TextStyle(color: pinColor, fontWeight: FontWeight.bold, fontSize: 11),
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 18),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  onPressed: () => setState(() => _selectedPin = null),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              pin.title,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Coordenadas: ${pin.latitude.toStringAsFixed(4)}, ${pin.longitude.toStringAsFixed(4)} • ✓ ${pin.confirmationsCount} confirmaciones',
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 40,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PostDetailScreen(postId: pin.id),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.remove_red_eye_outlined, size: 16),
+                label: const Text('Ver Detalles de la Incidencia', style: TextStyle(fontSize: 13)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DominicanMapPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paintGrid = Paint()
+      ..color = Colors.blueGrey.withValues(alpha: 0.08)
+      ..strokeWidth = 1.0;
+
+    // Cuadrícula geodésica sutil
+    for (double i = 0; i < size.width; i += 40) {
+      canvas.drawLine(Offset(i, 0), Offset(i, size.height), paintGrid);
+    }
+    for (double j = 0; j < size.height; j += 40) {
+      canvas.drawLine(Offset(0, j), Offset(size.width, j), paintGrid);
+    }
+
+    // Región de RD simulada
+    final paintRD = Paint()
+      ..color = Colors.white.withValues(alpha: 0.6)
+      ..style = PaintingStyle.fill;
+
+    final rectRD = RRect.fromRectAndRadius(
+      Rect.fromLTWH(size.width * 0.1, size.height * 0.25, size.width * 0.8, size.height * 0.5),
+      const Radius.circular(24),
+    );
+    canvas.drawRRect(rectRD, paintRD);
+
+    // Texto de referencia territorial
+    final textPainter = TextPainter(
+      text: const TextSpan(
+        text: 'REPÚBLICA DOMINICANA\nRed Geoespacial de Incidencias',
+        style: TextStyle(
+          color: Color(0xFF64748B),
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1.2,
+        ),
+      ),
+      textAlign: TextAlign.center,
+      textDirection: TextDirection.ltr,
+    );
+    textPainter.layout();
+    textPainter.paint(
+      canvas,
+      Offset((size.width - textPainter.width) / 2, size.height * 0.45),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

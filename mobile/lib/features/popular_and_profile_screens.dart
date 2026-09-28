@@ -55,80 +55,116 @@ class _PopularScreenState extends State<PopularScreen> {
   }
 }
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final ApiClient _apiClient = ApiClient();
+  UserModel? _user;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    setState(() => _loading = true);
+    final user = await _apiClient.getCurrentUser();
+    if (mounted) {
+      setState(() {
+        _user = user;
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _logout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('¿Cerrar sesión?'),
+        content: const Text('Tendrás que volver a iniciar sesión para confirmar incidencias o publicar reportes.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Cerrar Sesión'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await _apiClient.logout();
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (route) => false,
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mi Perfil Ciudadano'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadProfile,
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _user == null
+              ? _buildGuestView()
+              : _buildUserProfile(),
+    );
+  }
+
+  Widget _buildGuestView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const CircleAvatar(
-              radius: 46,
-              backgroundColor: Color(0xFF002F6C),
-              child: Text(
-                'RD',
-                style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-            ),
-            const SizedBox(height: 12),
+            const Icon(Icons.account_circle_outlined, size: 72, color: Colors.grey),
+            const SizedBox(height: 16),
             const Text(
-              '@ciudadano_rd',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              'Modo Invitado',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 4),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.blue.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Text(
-                'Nivel: Colaborador Confiable',
-                style: TextStyle(color: Color(0xFF002F6C), fontWeight: FontWeight.w600, fontSize: 13),
-              ),
+            const SizedBox(height: 8),
+            const Text(
+              'Estás explorando la comunidad sin iniciar sesión. Crea tu cuenta para sumar puntos de reputación y confirmar reportes.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey),
             ),
             const SizedBox(height: 24),
-
-            // Metrics row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildStat('Reportes', '14'),
-                _buildStat('Confirmaciones', '68'),
-                _buildStat('Reputación', '240 pts'),
-              ],
-            ),
-            const SizedBox(height: 32),
-
-            // Options List
-            ListTile(
-              leading: const Icon(Icons.location_city_outlined),
-              title: const Text('Zona habitual: Santo Domingo, D.N.'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {},
-            ),
-            ListTile(
-              leading: const Icon(Icons.shield_outlined),
-              title: const Text('Normas de la comunidad y Privacidad'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {},
-            ),
-            ListTile(
-              leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text('Cerrar sesión', style: TextStyle(color: Colors.red)),
-              onTap: () {
+            ElevatedButton(
+              onPressed: () {
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (context) => const LoginScreen()),
                   (route) => false,
                 );
               },
+              child: const Text('Iniciar Sesión o Registrarme'),
             ),
           ],
         ),
@@ -136,10 +172,101 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildUserProfile() {
+    final initials = _user!.username.isNotEmpty ? _user!.username.substring(0, 1).toUpperCase() : 'RD';
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20.0),
+      child: Column(
+        children: [
+          CircleAvatar(
+            radius: 46,
+            backgroundColor: const Color(0xFF002F6C),
+            child: Text(
+              initials,
+              style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '@${_user!.username}',
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _user!.email,
+            style: const TextStyle(fontSize: 13, color: Colors.grey),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.blue.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              'Nivel: ${_user!.reputationLevel}',
+              style: const TextStyle(color: Color(0xFF002F6C), fontWeight: FontWeight.w600, fontSize: 13),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Metrics row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildStat('Reportes', '${_user!.totalPosts}'),
+              _buildStat('Confirmaciones', '${_user!.totalConfirmations}'),
+              _buildStat('Reputación', '${_user!.reputationScore} pts'),
+            ],
+          ),
+          const SizedBox(height: 32),
+
+          // Details List
+          ListTile(
+            leading: const Icon(Icons.location_on_outlined, color: Color(0xFF002F6C)),
+            title: Text('Provincia: ${_user!.province ?? "República Dominicana"}'),
+            subtitle: _user!.municipality != null ? Text('Municipio: ${_user!.municipality}') : null,
+          ),
+          ListTile(
+            leading: const Icon(Icons.calendar_today_outlined, color: Color(0xFF002F6C)),
+            title: const Text('Miembro de la comunidad desde'),
+            subtitle: Text('${_user!.createdAt.day}/${_user!.createdAt.month}/${_user!.createdAt.year}'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.shield_outlined, color: Color(0xFF002F6C)),
+            title: const Text('Normas comunitarias y Privacidad'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Compromiso de Privacidad'),
+                  content: const Text(
+                    'En RDReporta no se revelan tus coordenadas privadas personales ni existen mensajes directos o comentarios públicos. Solo se comparte la información explícita de incidencias ciudadanas.',
+                  ),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(context), child: const Text('Entendido')),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          ListTile(
+            leading: const Icon(Icons.logout, color: Colors.red),
+            title: const Text('Cerrar sesión', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+            onTap: _logout,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStat(String label, String value) {
     return Column(
       children: [
-        Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF002F6C))),
         const SizedBox(height: 4),
         Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
       ],

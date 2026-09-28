@@ -66,5 +66,11 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>RDReporta necesita acceso a tu cámara para capturar fotografías de incidencias y reportes ciudadanos.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>RDReporta necesita acceso a tu galería para adjuntar fotos de evidencias a tus reportes.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>RDReporta necesita tu ubicación para geolocalizar incidencias cercanas en República Dominicana.</string>
 </dict>
 </plist>

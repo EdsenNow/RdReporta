@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../core/constants/api_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../models/models.dart';
 import '../../core/networking/api_client.dart';
+import '../../features/feed/post_detail_screen.dart';
 
 class IncidentCard extends StatefulWidget {
   final PostModel post;
@@ -44,6 +46,11 @@ class _IncidentCardState extends State<IncidentCard> {
     }
   }
 
+  String _formatImageUrl(String url) {
+    if (url.startsWith('http')) return url;
+    return '${ApiConstants.hostUrl}$url';
+  }
+
   @override
   Widget build(BuildContext context) {
     final post = widget.post;
@@ -56,9 +63,22 @@ class _IncidentCardState extends State<IncidentCard> {
     }
 
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PostDetailScreen(
+                postId: post.id,
+                initialPost: post,
+              ),
+            ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header: Category badge & Author
@@ -116,7 +136,7 @@ class _IncidentCardState extends State<IncidentCard> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
                 child: CachedNetworkImage(
-                  imageUrl: post.images.first,
+                  imageUrl: _formatImageUrl(post.images.first),
                   height: 200,
                   width: double.infinity,
                   fit: BoxFit.cover,
@@ -208,6 +228,7 @@ class _IncidentCardState extends State<IncidentCard> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

@@ -10,6 +10,14 @@ class ApiConstants {
     }
   }
 
+  static String get hostUrl {
+    if (Platform.isAndroid) {
+      return 'http://10.0.2.2:5000';
+    } else {
+      return 'http://localhost:5000';
+    }
+  }
+
   static const String authRegister = '/auth/register';
   static const String authLogin = '/auth/login';
   static const String authRefresh = '/auth/refresh';
@@ -23,4 +31,5 @@ class ApiConstants {
   static const String postsMap = '/posts/map';
   static const String createPost = '/posts';
   static const String uploadImage = '/uploads/image';
+  static const String moderationReport = '/moderation/report';
 }

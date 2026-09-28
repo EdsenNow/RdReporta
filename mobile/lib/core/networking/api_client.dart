@@ -210,4 +210,143 @@ class ApiClient {
       return false;
     }
   }
+
+  // --- Auth Session & Profile ---
+  Future<bool> isLoggedIn() async {
+    final token = await _storage.read(key: 'jwt_token');
+    return token != null && token.isNotEmpty;
+  }
+
+  Future<UserModel?> getCurrentUser() async {
+    try {
+      final res = await _dio.get(ApiConstants.usersMe);
+      if (res.data['success'] == true && res.data['data'] != null) {
+        return UserModel.fromJson(res.data['data']);
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // --- Create & Upload ---
+  Future<String?> uploadImage(String filePath) async {
+    try {
+      final fileName = filePath.split(RegExp(r'[\\/]')).last;
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(filePath, filename: fileName),
+      });
+
+      final res = await _dio.post(
+        ApiConstants.uploadImage,
+        data: formData,
+      );
+
+      if (res.data['success'] == true && res.data['url'] != null) {
+        final rawUrl = res.data['url'] as String;
+        if (rawUrl.startsWith('http')) return rawUrl;
+        return '${ApiConstants.hostUrl}$rawUrl';
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>> createPost({
+    required int categoryId,
+    required String title,
+    required String description,
+    required double latitude,
+    required double longitude,
+    required String province,
+    required String municipality,
+    String? addressReference,
+    List<String>? imageUrls,
+  }) async {
+    try {
+      final res = await _dio.post(
+        ApiConstants.createPost,
+        data: {
+          'categoryId': categoryId,
+          'title': title,
+          'description': description,
+          'latitude': latitude,
+          'longitude': longitude,
+          'province': province,
+          'municipality': municipality,
+          'addressReference': addressReference,
+          'imageUrls': imageUrls ?? [],
+        },
+      );
+      if (res.data['success'] == true) {
+        return {'success': true, 'data': res.data['data']};
+      }
+      return {'success': false, 'message': res.data['message'] ?? 'Error al publicar reporte'};
+    } on DioException catch (e) {
+      final msg = e.response?.data?['message'] ?? 'Error de conexión con el servidor';
+      return {'success': false, 'message': msg};
+    } catch (_) {
+      return {'success': false, 'message': 'Ocurrió un error inesperado'};
+    }
+  }
+
+  // --- Post Detail & Map ---
+  Future<PostModel?> getPostById(String id) async {
+    try {
+      final res = await _dio.get('/posts/$id');
+      if (res.data['success'] == true && res.data['data'] != null) {
+        return PostModel.fromJson(res.data['data']);
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<List<PostMapPinModel>> getMapPins({
+    double minLat = 17.5,
+    double maxLat = 20.0,
+    double minLng = -72.0,
+    double maxLng = -68.3,
+    int? categoryId,
+  }) async {
+    try {
+      final res = await _dio.get(
+        ApiConstants.postsMap,
+        queryParameters: {
+          'minLat': minLat,
+          'maxLat': maxLat,
+          'minLng': minLng,
+          'maxLng': maxLng,
+          if (categoryId != null) 'categoryId': categoryId,
+        },
+      );
+      final list = res.data['data'] as List<dynamic>? ?? [];
+      return list.map((e) => PostMapPinModel.fromJson(e)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  // --- Moderation ---
+  Future<bool> reportPost({
+    required String postId,
+    required String reason,
+    String? description,
+  }) async {
+    try {
+      final res = await _dio.post(
+        ApiConstants.moderationReport,
+        data: {
+          'postId': postId,
+          'reason': reason,
+          'description': description,
+        },
+      );
+      return res.data['success'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
 }

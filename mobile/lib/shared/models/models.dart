@@ -156,3 +156,47 @@ class PostMapPinModel {
     );
   }
 }
+
+class UserModel {
+  final String id;
+  final String username;
+  final String email;
+  final String? avatarUrl;
+  final String? province;
+  final String? municipality;
+  final int reputationScore;
+  final String reputationLevel;
+  final int totalPosts;
+  final int totalConfirmations;
+  final DateTime createdAt;
+
+  UserModel({
+    required this.id,
+    required this.username,
+    required this.email,
+    this.avatarUrl,
+    this.province,
+    this.municipality,
+    required this.reputationScore,
+    required this.reputationLevel,
+    required this.totalPosts,
+    required this.totalConfirmations,
+    required this.createdAt,
+  });
+
+  factory UserModel.fromJson(Map<String, dynamic> json) {
+    return UserModel(
+      id: json['id'] as String,
+      username: json['username'] as String,
+      email: json['email'] as String,
+      avatarUrl: json['avatarUrl'] as String?,
+      province: json['province'] as String?,
+      municipality: json['municipality'] as String?,
+      reputationScore: json['reputationScore'] as int? ?? 100,
+      reputationLevel: json['reputationLevel']?.toString() ?? 'Ciudadano',
+      totalPosts: json['totalPosts'] as int? ?? 0,
+      totalConfirmations: json['totalConfirmations'] as int? ?? 0,
+      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ?? DateTime.now(),
+    );
+  }
+}
