@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/networking/api_client.dart';
 import '../../shared/models/models.dart';
 import '../../shared/widgets/incident_card.dart';
+import 'auth/login_screen.dart';
 
 class PopularScreen extends StatefulWidget {
   const PopularScreen({super.key});
@@ -121,7 +122,13 @@ class ProfileScreen extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
               title: const Text('Cerrar sesión', style: TextStyle(color: Colors.red)),
-              onTap: () {},
+              onTap: () {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  (route) => false,
+                );
+              },
             ),
           ],
         ),

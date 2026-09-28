@@ -41,12 +41,75 @@ class ApiClient {
   }
 
   // --- Auth ---
-  Future<bool> login(String email, String password) async {
+  Future<Map<String, dynamic>> login(String email, String password) async {
     try {
       final res = await _dio.post(
         ApiConstants.authLogin,
         data: {'email': email, 'password': password},
       );
+      if (res.data['success'] == true) {
+        final token = res.data['data']['accessToken'];
+        await _storage.write(key: 'jwt_token', value: token);
+        return {'success': true, 'data': res.data['data']};
+      }
+      return {'success': false, 'message': res.data['message'] ?? 'Credenciales inválidas'};
+    } on DioException catch (e) {
+      final msg = e.response?.data?['message'] ?? 'Error de conexión con el servidor';
+      return {'success': false, 'message': msg};
+    } catch (_) {
+      return {'success': false, 'message': 'Ocurrió un error inesperado'};
+    }
+  }
+
+  Future<Map<String, dynamic>> register({
+    required String username,
+    required String email,
+    required String password,
+    String? province,
+    String? municipality,
+  }) async {
+    try {
+      final res = await _dio.post(
+        ApiConstants.authRegister,
+        data: {
+          'username': username,
+          'email': email,
+          'password': password,
+          'province': province,
+          'municipality': municipality,
+        },
+      );
+      if (res.data['success'] == true) {
+        final token = res.data['data']['accessToken'];
+        await _storage.write(key: 'jwt_token', value: token);
+        return {'success': true, 'data': res.data['data']};
+      }
+      return {'success': false, 'message': res.data['message'] ?? 'Error al registrar'};
+    } on DioException catch (e) {
+      final msg = e.response?.data?['message'] ?? 'Error de conexión con el servidor';
+      return {'success': false, 'message': msg};
+    } catch (_) {
+      return {'success': false, 'message': 'Ocurrió un error inesperado'};
+    }
+  }
+
+  Future<bool> loginWithGoogle(String idToken) async {
+    try {
+      final res = await _dio.post('/auth/google', data: {'idToken': idToken});
+      if (res.data['success'] == true) {
+        final token = res.data['data']['accessToken'];
+        await _storage.write(key: 'jwt_token', value: token);
+        return true;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> loginWithApple(String identityToken) async {
+    try {
+      final res = await _dio.post('/auth/apple', data: {'identityToken': identityToken});
       if (res.data['success'] == true) {
         final token = res.data['data']['accessToken'];
         await _storage.write(key: 'jwt_token', value: token);
