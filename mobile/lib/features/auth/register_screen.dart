@@ -150,7 +150,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 // Province Dropdown
                 DropdownButtonFormField<String>(
-                  value: _selectedProvince,
+                  initialValue: _selectedProvince,
                   decoration: InputDecoration(
                     labelText: 'Provincia de residencia',
                     prefixIcon: const Icon(Icons.location_on_outlined),

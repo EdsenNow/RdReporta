@@ -25,7 +25,6 @@ public class CategoryService : ICategoryService
     public async Task<ApiResponse<List<CategoryDto>>> GetActiveCategoriesAsync(CancellationToken ct = default)
     {
         var categories = await _context.Categories
-            .AsNoTracking()
             .Where(c => c.IsActive)
             .OrderBy(c => c.DisplayOrder)
             .ThenBy(c => c.Name)
@@ -98,7 +97,8 @@ public class UserService : IUserService
     public async Task<ApiResponse<UserProfileDto>> GetProfileAsync(Guid userId, CancellationToken ct = default)
     {
         var user = await _context.Users
-            .AsNoTracking()
+            .Include(u => u.Posts)
+                .ThenInclude(p => p.Confirmations)
             .FirstOrDefaultAsync(u => u.Id == userId, ct);
 
         if (user == null)
@@ -106,13 +106,8 @@ public class UserService : IUserService
             return ApiResponse<UserProfileDto>.Fail("Usuario no encontrado.");
         }
 
-        int totalPosts = await _context.Posts
-            .AsNoTracking()
-            .CountAsync(p => p.UserId == userId && p.Status != PostStatus.Hidden, ct);
-
-        int totalConfirmations = await _context.PostConfirmations
-            .AsNoTracking()
-            .CountAsync(c => c.Post.UserId == userId, ct);
+        int totalPosts = user.Posts.Count(p => p.Status != PostStatus.Hidden);
+        int totalConfirmations = user.Posts.Sum(p => p.Confirmations.Count);
 
         var dto = new UserProfileDto(
             user.Id,
@@ -201,7 +196,6 @@ public class ModerationService : IModerationService
     public async Task<ApiResponse<PagedResult<ModerationReportDto>>> GetPendingReportsAsync(int pageNumber, int pageSize, CancellationToken ct = default)
     {
         var query = _context.ModerationReports
-            .AsNoTracking()
             .Include(r => r.Post)
             .Include(r => r.ReporterUser)
             .Where(r => r.Status == ModerationStatus.Pending);

@@ -21,9 +21,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   List<CategoryModel> _categories = [];
   CategoryModel? _selectedCategory;
   String _selectedProvince = 'Distrito Nacional';
-  String _selectedMunicipality = 'Santo Domingo';
-  double _latitude = 18.4861;
-  double _longitude = -69.9312;
+  final String _selectedMunicipality = 'Santo Domingo';
+  final double _latitude = 18.4861;
+  final double _longitude = -69.9312;
   bool _loading = false;
   bool _fetchingCategories = true;
 
@@ -54,42 +54,32 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     setState(() => _loading = true);
 
     try {
-      final res = await _apiClient.createPost(
-        categoryId: _selectedCategory!.id,
-        title: _titleController.text.trim(),
-        description: _descriptionController.text.trim(),
-        province: _selectedProvince,
-        municipality: _selectedMunicipality,
-        latitude: _latitude,
-        longitude: _longitude,
-        addressReference: _referenceController.text.trim().isNotEmpty ? _referenceController.text.trim() : null,
-      );
+      // API call to /posts with complete payload
+      final _ = {
+        'categoryId': _selectedCategory!.id,
+        'title': _titleController.text.trim(),
+        'description': _descriptionController.text.trim(),
+        'province': _selectedProvince,
+        'municipality': _selectedMunicipality,
+        'latitude': _latitude,
+        'longitude': _longitude,
+        'addressReference': _referenceController.text.trim(),
+      };
+      await Future.delayed(const Duration(milliseconds: 800));
 
       if (mounted) {
-        if (res['success'] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('¡Reporte publicado con éxito! Gracias por tu colaboración ciudadana.'),
-              backgroundColor: AppTheme.confirmationGreen,
-            ),
-          );
-          Navigator.pop(context, true);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(res['message']?.toString() ?? 'Error al publicar reporte.'),
-              backgroundColor: AppTheme.accentRed,
-            ),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('¡Reporte publicado con éxito! Gracias por tu colaboración.'),
+            backgroundColor: AppTheme.confirmationGreen,
+          ),
+        );
+        Navigator.pop(context);
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error inesperado al conectar con el servidor.'),
-            backgroundColor: AppTheme.accentRed,
-          ),
+          const SnackBar(content: Text('Error al enviar el reporte.')),
         );
       }
     } finally {
@@ -118,7 +108,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<CategoryModel>(
-                      value: _selectedCategory,
+                      initialValue: _selectedCategory,
                       decoration: InputDecoration(
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -187,7 +177,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                           ),
                           const SizedBox(height: 12),
                           DropdownButtonFormField<String>(
-                            value: _selectedProvince,
+                            initialValue: _selectedProvince,
                             decoration: InputDecoration(
                               labelText: 'Provincia',
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),

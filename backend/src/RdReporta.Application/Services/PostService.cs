@@ -124,7 +124,6 @@ public class PostService : IPostService
         CancellationToken ct = default)
     {
         var query = _context.Posts
-            .AsNoTracking()
             .Include(p => p.User)
             .Include(p => p.Category)
             .Include(p => p.Images)
@@ -167,7 +166,6 @@ public class PostService : IPostService
 
         // PostGIS distance evaluation
         var query = _context.Posts
-            .AsNoTracking()
             .Include(p => p.User)
             .Include(p => p.Category)
             .Include(p => p.Images)
@@ -215,7 +213,6 @@ public class PostService : IPostService
         var sevenDaysAgo = DateTime.UtcNow.AddDays(-7);
 
         var query = _context.Posts
-            .AsNoTracking()
             .Include(p => p.User)
             .Include(p => p.Category)
             .Include(p => p.Images)
@@ -255,7 +252,6 @@ public class PostService : IPostService
         CancellationToken ct = default)
     {
         var query = _context.Posts
-            .AsNoTracking()
             .Include(p => p.Category)
             .Include(p => p.Images)
             .Where(p => p.Status == PostStatus.Active
