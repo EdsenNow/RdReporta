@@ -14,6 +14,9 @@ public interface IApplicationDbContext
     DbSet<PostReaction> PostReactions { get; }
     DbSet<PostConfirmation> PostConfirmations { get; }
     DbSet<ModerationReport> ModerationReports { get; }
+    DbSet<UserFollow> UserFollows { get; }
+    DbSet<UserNotification> UserNotifications { get; }
+    DbSet<DeviceRegistration> DeviceRegistrations { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -21,6 +21,7 @@ public class Post : BaseEntity<Guid>
 
     public string Province { get; set; } = string.Empty;
     public string Municipality { get; set; } = string.Empty;
+    public string? Neighborhood { get; set; }
     public string? AddressReference { get; set; }
 
     public PostStatus Status { get; set; } = PostStatus.Active;

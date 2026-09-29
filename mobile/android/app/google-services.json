@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "671856962338",
+    "project_id": "rd-reporta",
+    "storage_bucket": "rd-reporta.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:671856962338:android:35e523b30a2bc69179937b",
+        "android_client_info": {
+          "package_name": "com.rdreporta.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "671856962338-8aa2qm8h1928gqu7qcnrkj0bgjcunfcn.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.rdreporta.app",
+            "certificate_hash": "8ff870a42fe322e5feb011fd81a027da9bb385ac"
+          }
+        },
+        {
+          "client_id": "671856962338-8b4p54rt9jtlecmci1v6khr5ahfp9gsf.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBVyqM7tZwNPezj2cPcwTwfNjI0YubWRFw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "671856962338-8b4p54rt9jtlecmci1v6khr5ahfp9gsf.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

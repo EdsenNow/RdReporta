@@ -4,6 +4,8 @@ import '../feed/feed_screen.dart';
 import '../map/map_screen.dart';
 import '../posts/create_post_screen.dart';
 import '../popular_and_profile_screens.dart';
+import '../../shared/widgets/auth_guard.dart';
+import '../../core/firebase_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,6 +25,12 @@ class _HomeScreenState extends State<HomeScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    FirebaseService.syncToken();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
@@ -30,41 +38,32 @@ class _HomeScreenState extends State<HomeScreen> {
         index: _currentIndex,
         children: _screens,
       ),
-      bottomNavigationBar: _buildFinanzAppBottomBar(context),
+      bottomNavigationBar: _buildModernBottomBar(context),
     );
   }
 
-  Widget _buildFinanzAppBottomBar(BuildContext context) {
-    final isDark = context.isDarkMode;
-
+  Widget _buildModernBottomBar(BuildContext context) {
     return SafeArea(
       top: false,
       bottom: true,
       child: Container(
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 7),
         decoration: BoxDecoration(
           color: context.surfaceColor,
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: isDark ? const Color(0x33EB6F92) : context.borderColor,
-            width: 1.2,
+            color: context.borderColor,
+            width: 2,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
-              blurRadius: 18,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
+),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             // Tab 0: Inicio (Categorías / Feed)
             _buildNavItem(
-              outlineIcon: Icons.grid_view_outlined,
-              filledIcon: Icons.grid_view_rounded,
+              outlineIcon: Icons.home_outlined,
+              filledIcon: Icons.home_rounded,
               label: 'Inicio',
               index: 0,
             ),
@@ -77,13 +76,13 @@ class _HomeScreenState extends State<HomeScreen> {
               index: 1,
             ),
 
-            // Central Floating + Action Button (FinanzApp style)
+            // Acción principal para crear un reporte.
             _buildCenterActionButton(context),
 
             // Tab 2: Popular
             _buildNavItem(
-              outlineIcon: Icons.pie_chart_outline_rounded,
-              filledIcon: Icons.pie_chart_rounded,
+              outlineIcon: Icons.local_fire_department_outlined,
+              filledIcon: Icons.local_fire_department_rounded,
               label: 'Popular',
               index: 2,
             ),
@@ -103,30 +102,25 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildCenterActionButton(BuildContext context) {
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
+        if (!await requireSession(context) || !context.mounted) return;
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const CreatePostScreen()),
         );
       },
       child: Container(
-        width: 52,
-        height: 52,
+        width: 54,
+        height: 54,
         decoration: BoxDecoration(
           color: context.loveColor,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: context.loveColor.withValues(alpha: 0.45),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: context.surfaceColor, width: 2),
+),
         child: const Icon(
           Icons.add_rounded,
           color: Colors.white,
-          size: 28,
+          size: 29,
         ),
       ),
     );
@@ -142,19 +136,24 @@ class _HomeScreenState extends State<HomeScreen> {
     final activeColor = context.loveColor;
     final inactiveColor = context.mutedColor;
 
-    return InkWell(
+    return Expanded(
+        child: InkWell(
       onTap: () => setState(() => _currentIndex = index),
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(15),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeInOut,
         padding: EdgeInsets.symmetric(
           horizontal: isSelected ? 12.0 : 8.0,
-          vertical: 6.0,
+          vertical: 7.0,
         ),
         decoration: BoxDecoration(
           color: isSelected ? context.overlayColor : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(
+            color: isSelected ? context.loveColor : Colors.transparent,
+            width: 2,
+          ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -162,13 +161,15 @@ class _HomeScreenState extends State<HomeScreen> {
             Icon(
               isSelected ? filledIcon : outlineIcon,
               color: isSelected ? activeColor : inactiveColor,
-              size: 22,
+              size: 21,
             ),
             const SizedBox(height: 2),
             Text(
               label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 10.5,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 color: isSelected ? activeColor : inactiveColor,
               ),
@@ -176,6 +177,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-    );
+    ));
   }
 }

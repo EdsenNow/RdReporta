@@ -3,6 +3,7 @@
 # ==============================================================================
 
 $ErrorActionPreference = "Continue"
+Set-Location -LiteralPath (Split-Path -Parent $PSScriptRoot)
 
 Write-Host "==========================================================" -ForegroundColor Cyan
 Write-Host "  AUDITORIA DE CODIGO, SEGURIDAD Y RENDIMIENTO: RDREPORTA " -ForegroundColor Cyan
@@ -27,7 +28,7 @@ if (-not (Get-Command flutter -ErrorAction SilentlyContinue)) {
 Write-Host "[1/5] Verificando compilacion del Backend (.NET 10)..." -ForegroundColor Yellow
 dotnet build "backend\src\RdReporta.Api" --nologo -v q
 if ($LASTEXITCODE -eq 0) {
-    Write-Host "  OK: Backend compila correctamente (0 errores, 0 advertencias)." -ForegroundColor Green
+    Write-Host "  OK: Backend compila correctamente; revisar advertencias en la salida." -ForegroundColor Green
     $PassedChecks++
 } else {
     Write-Host "  ERROR: Fallo en la compilacion del backend." -ForegroundColor Red
@@ -36,13 +37,22 @@ if ($LASTEXITCODE -eq 0) {
 
 # 2. Backend Vulnerabilidades
 Write-Host "[2/5] Escaneando vulnerabilidades en paquetes NuGet..." -ForegroundColor Yellow
-$VulnCheck = dotnet list "backend\src\RdReporta.Api" package --vulnerable
-if ($LASTEXITCODE -eq 0) {
-    Write-Host "  OK: Dependencias del Backend analizadas y seguras." -ForegroundColor Green
+$VulnCheck = dotnet list "backend\RdReporta.slnx" package --vulnerable --include-transitive --format json --no-restore
+$VulnExit = $LASTEXITCODE
+try {
+    if ($VulnExit -ne 0) { throw "No se pudo completar el escaneo NuGet." }
+    $Audit = ($VulnCheck -join "`n") | ConvertFrom-Json -ErrorAction Stop
+    if (-not $Audit.projects) { throw "El escaneo no devolvio proyectos." }
+    $Vulnerable = @($Audit.projects | ForEach-Object { $_.frameworks } | ForEach-Object {
+        @($_.topLevelPackages) + @($_.transitivePackages)
+    } | Where-Object { $_.vulnerabilities.Count -gt 0 })
+    if ($Vulnerable.Count -gt 0) { throw "$($Vulnerable.Count) dependencias con vulnerabilidades: $($Vulnerable.id -join ', ')" }
+    if (@($Audit.logs | Where-Object { $_.level -in @('error', 'warning') }).Count -gt 0) { throw "El escaneo devolvio advertencias; revisar fuentes de vulnerabilidades." }
+    Write-Host "  OK: No se detectaron vulnerabilidades en el escaneo completado." -ForegroundColor Green
     $PassedChecks++
-} else {
-    Write-Host "  AVISO: Posible advertencia en dependencias." -ForegroundColor Yellow
-    $PassedChecks++
+} catch {
+    Write-Host "  ERROR: $($_.Exception.Message)" -ForegroundColor Red
+    $FailedChecks++
 }
 
 # 3. Flutter Tests

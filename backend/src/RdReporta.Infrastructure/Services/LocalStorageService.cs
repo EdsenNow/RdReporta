@@ -22,7 +22,7 @@ public class LocalStorageService : IStorageService
             Directory.CreateDirectory(uploadsFolder);
         }
 
-        var uniqueName = $"{Guid.NewGuid()}_{Path.GetFileName(fileName)}";
+        var uniqueName = $"{Guid.NewGuid()}{Path.GetExtension(fileName).ToLowerInvariant()}";
         var filePath = Path.Combine(uploadsFolder, uniqueName);
 
         using (var output = new FileStream(filePath, FileMode.Create))

@@ -33,7 +33,7 @@ public class ExceptionHandlingMiddleware
         context.Response.ContentType = "application/json";
         context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
 
-        var response = ApiResponse<object>.Fail("Ocurrió un error inesperado en el servidor.", new List<string> { exception.Message });
+        var response = ApiResponse<object>.Fail("Ocurrió un error inesperado en el servidor.");
         var json = JsonSerializer.Serialize(response, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 
         await context.Response.WriteAsync(json);

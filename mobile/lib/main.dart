@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'core/theme/app_theme.dart';
 import 'features/splash/splash_screen.dart';
+import 'core/firebase_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppTheme.loadSavedTheme();
+  await FirebaseService.initialize();
   runApp(const RdReportaApp());
 }
 

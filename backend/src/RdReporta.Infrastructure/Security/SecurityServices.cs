@@ -83,15 +83,20 @@ public class JwtTokenService : IJwtTokenService
 
         var tokenValidationParameters = new TokenValidationParameters
         {
-            ValidateAudience = false,
-            ValidateIssuer = false,
+            ValidateAudience = true,
+            ValidAudience = _configuration["Jwt:Audience"] ?? "RDReportaApp",
+            ValidateIssuer = true,
+            ValidIssuer = _configuration["Jwt:Issuer"] ?? "RDReportaApi",
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
             ValidateLifetime = false // Here we don't care about lifetime because we want to validate expired token to refresh it
         };
 
         var tokenHandler = new JwtSecurityTokenHandler();
-        var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out var securityToken);
+        ClaimsPrincipal principal;
+        SecurityToken securityToken;
+        try { principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out securityToken); }
+        catch (Exception e) when (e is SecurityTokenException or ArgumentException) { return null; }
 
         if (securityToken is not JwtSecurityToken jwtSecurityToken ||
             !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))

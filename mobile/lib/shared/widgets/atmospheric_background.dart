@@ -18,7 +18,7 @@ class AtmosphericBackground extends StatelessWidget {
     final isDark = context.isDarkMode;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF13111C) : const Color(0xFFF4F1EA),
+      backgroundColor: isDark ? const Color(0xFF13111C) : const Color(0xFFFAF4ED),
       body: Stack(
         children: [
           // 1. Degradado base adaptativo
@@ -31,10 +31,7 @@ class AtmosphericBackground extends StatelessWidget {
                           Color(0xFF110F1A), // Darker
                           Color(0xFF191724), // Base
                         ]
-                      : const [
-                          Color(0xFFFAF7F2), // Light warm top
-                          Color(0xFFEDE8E0), // Soft cream bottom
-                        ],
+                      : const [Color(0xFFFAF4ED), Color(0xFFFAF4ED)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -43,7 +40,7 @@ class AtmosphericBackground extends StatelessWidget {
           ),
 
           // 2. Orbes luminosos adaptativos (Rosé Pine: Love, Pine, Iris, Gold)
-          Positioned.fill(
+          if (isDark) Positioned.fill(
             child: CustomPaint(
               painter: _OrbsBackgroundPainter(isDark: isDark),
             ),
@@ -62,27 +59,20 @@ class AtmosphericBackground extends StatelessWidget {
               child: SafeArea(
                 child: Container(
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1F1D2E) : Colors.white,
+                    color: isDark ? const Color(0xFF1F1D2E) : const Color(0xFFFFFAF3),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: isDark ? const Color(0x44EB6F92) : const Color(0xFFDCD6CC),
-                      width: 1.5,
+                      color: isDark ? const Color(0x44EB6F92) : const Color(0xFFF2E9E1),
+                      width: isDark ? 1.5 : 2,
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
                   ),
                   child: IconButton(
                     icon: Icon(
                       isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                      color: isDark ? const Color(0xFFEB6F92) : const Color(0xFFD9446C),
+                      color: isDark ? const Color(0xFFEB6F92) : const Color(0xFFB4637A),
                       size: 20,
                     ),
-                    tooltip: isDark ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro',
+                    tooltip: isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro',
                     onPressed: () {
                       AppTheme.toggleTheme();
                     },

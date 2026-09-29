@@ -20,6 +20,9 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<PostReaction> PostReactions => Set<PostReaction>();
     public DbSet<PostConfirmation> PostConfirmations => Set<PostConfirmation>();
     public DbSet<ModerationReport> ModerationReports => Set<ModerationReport>();
+    public DbSet<UserFollow> UserFollows => Set<UserFollow>();
+    public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
+    public DbSet<DeviceRegistration> DeviceRegistrations => Set<DeviceRegistration>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -36,9 +39,35 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.HasIndex(u => u.Email).IsUnique();
             entity.HasIndex(u => u.Username).IsUnique();
             entity.Property(u => u.Username).HasMaxLength(50).IsRequired();
+            entity.Property(u => u.DisplayName).HasMaxLength(80).IsRequired();
             entity.Property(u => u.Email).HasMaxLength(256).IsRequired();
             entity.Property(u => u.Province).HasMaxLength(100);
             entity.Property(u => u.Municipality).HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<UserFollow>(entity =>
+        {
+            entity.HasKey(x => new { x.FollowerId, x.FollowedId });
+            entity.HasOne(x => x.Follower).WithMany().HasForeignKey(x => x.FollowerId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Followed).WithMany().HasForeignKey(x => x.FollowedId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => x.FollowedId);
+        });
+
+        modelBuilder.Entity<UserNotification>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Type).HasMaxLength(30).IsRequired();
+            entity.Property(x => x.Message).HasMaxLength(300).IsRequired();
+            entity.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => new { x.UserId, x.IsRead, x.CreatedAt });
+        });
+        modelBuilder.Entity<DeviceRegistration>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Token).HasMaxLength(500).IsRequired();
+            entity.Property(x => x.Platform).HasMaxLength(20).IsRequired();
+            entity.HasIndex(x => x.Token).IsUnique();
+            entity.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // Role & UserRole Configuration
@@ -83,6 +112,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.Property(p => p.Description).IsRequired();
             entity.Property(p => p.Province).HasMaxLength(100).IsRequired();
             entity.Property(p => p.Municipality).HasMaxLength(100).IsRequired();
+            entity.Property(p => p.Neighborhood).HasMaxLength(100);
             entity.Property(p => p.AddressReference).HasMaxLength(255);
 
             // Spatial Column: Geography Point with SRID 4326 (WGS84 GPS coords)

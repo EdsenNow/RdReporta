@@ -7,6 +7,37 @@ namespace RdReporta.Infrastructure.Persistence;
 
 public static class DbInitializer
 {
+    public static async Task UpgradeSchemaAsync(ApplicationDbContext context)
+    {
+        if (!context.Database.IsNpgsql()) return;
+
+        await context.Database.ExecuteSqlRawAsync(
+            "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"DisplayName\" character varying(80) NOT NULL DEFAULT ''; " +
+            "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"UsernameChangedAt\" timestamp with time zone NULL; " +
+            "ALTER TABLE \"Posts\" ADD COLUMN IF NOT EXISTS \"Neighborhood\" character varying(100) NULL; " +
+            "UPDATE \"Users\" SET \"DisplayName\" = \"Username\" WHERE \"DisplayName\" = '';"
+        );
+        await context.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS "UserFollows" (
+              "FollowerId" uuid NOT NULL REFERENCES "Users"("Id") ON DELETE CASCADE,
+              "FollowedId" uuid NOT NULL REFERENCES "Users"("Id") ON DELETE CASCADE,
+              "CreatedAt" timestamp with time zone NOT NULL,
+              CONSTRAINT "PK_UserFollows" PRIMARY KEY ("FollowerId", "FollowedId"));
+            CREATE INDEX IF NOT EXISTS "IX_UserFollows_FollowedId" ON "UserFollows" ("FollowedId");
+            CREATE TABLE IF NOT EXISTS "UserNotifications" (
+              "Id" uuid NOT NULL, "UserId" uuid NOT NULL REFERENCES "Users"("Id") ON DELETE CASCADE,
+              "ActorUserId" uuid NOT NULL, "PostId" uuid NULL, "Type" character varying(30) NOT NULL,
+              "Message" character varying(300) NOT NULL, "IsRead" boolean NOT NULL,
+              "CreatedAt" timestamp with time zone NOT NULL, CONSTRAINT "PK_UserNotifications" PRIMARY KEY ("Id"));
+            CREATE INDEX IF NOT EXISTS "IX_UserNotifications_UserId_IsRead_CreatedAt" ON "UserNotifications" ("UserId", "IsRead", "CreatedAt");
+            CREATE TABLE IF NOT EXISTS "DeviceRegistrations" (
+              "Id" uuid NOT NULL, "UserId" uuid NOT NULL REFERENCES "Users"("Id") ON DELETE CASCADE,
+              "Token" character varying(500) NOT NULL, "Platform" character varying(20) NOT NULL,
+              "UpdatedAt" timestamp with time zone NOT NULL, CONSTRAINT "PK_DeviceRegistrations" PRIMARY KEY ("Id"));
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_DeviceRegistrations_Token" ON "DeviceRegistrations" ("Token");
+            """);
+    }
+
     public static async Task SeedAsync(ApplicationDbContext context, IPasswordHasher passwordHasher)
     {
         // 1. Seed Roles
@@ -123,6 +154,7 @@ public static class DbInitializer
             {
                 Id = Guid.NewGuid(),
                 Username = "admin_rdreporta",
+                DisplayName = "Administrador RDReporta",
                 Email = "admin@rdreporta.do",
                 PasswordHash = passwordHasher.Hash("Admin123!*"),
                 Province = "Distrito Nacional",

@@ -59,6 +59,7 @@ public class PostService : IPostService
             Longitude = request.Longitude,
             Province = request.Province.Trim(),
             Municipality = request.Municipality.Trim(),
+            Neighborhood = request.Neighborhood?.Trim(),
             AddressReference = request.AddressReference?.Trim(),
             Status = PostStatus.Active,
             CreatedAt = DateTime.UtcNow,
@@ -83,8 +84,22 @@ public class PostService : IPostService
 
         _context.Posts.Add(post);
 
+        var followerIds = await _context.UserFollows
+            .Where(x => x.FollowedId == currentUserId)
+            .Select(x => x.FollowerId).ToListAsync(ct);
+        foreach (var followerId in followerIds)
+            _context.UserNotifications.Add(new UserNotification
+            {
+                UserId = followerId,
+                ActorUserId = currentUserId,
+                PostId = post.Id,
+                Type = "NewPost",
+                Message = $"{(string.IsNullOrWhiteSpace(user.DisplayName) ? user.Username : user.DisplayName)} publicó una nueva incidencia."
+            });
+
         // Increase reputation points slightly for posting
         user.ReputationScore += 2;
+        UpdateReputationLevel(user);
         user.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(ct);
@@ -123,6 +138,8 @@ public class PostService : IPostService
         Guid? currentUserId,
         CancellationToken ct = default)
     {
+        pageNumber = Math.Max(1, pageNumber);
+        pageSize = Math.Clamp(pageSize, 1, 100);
         var query = _context.Posts
             .Include(p => p.User)
             .Include(p => p.Category)
@@ -189,7 +206,7 @@ public class PostService : IPostService
         {
             var dto = MapToDto(p, p.User, p.Category, currentUserId);
             // Distance in meters
-            dto = dto with { DistanceInMeters = p.LocationCoordinates.Distance(userPoint) };
+            dto = dto with { DistanceInMeters = DistanceMeters(request.Latitude, request.Longitude, p.Latitude, p.Longitude) };
             return dto;
         }).ToList();
 
@@ -210,6 +227,8 @@ public class PostService : IPostService
         Guid? currentUserId,
         CancellationToken ct = default)
     {
+        pageNumber = Math.Max(1, pageNumber);
+        pageSize = Math.Clamp(pageSize, 1, 100);
         var sevenDaysAgo = DateTime.UtcNow.AddDays(-7);
 
         var query = _context.Posts
@@ -362,6 +381,7 @@ public class PostService : IPostService
             _context.PostConfirmations.Remove(existing);
             post.ConfirmationsCount = Math.Max(0, post.ConfirmationsCount - 1);
             post.User.ReputationScore = Math.Max(0, post.User.ReputationScore - 5);
+            UpdateReputationLevel(post.User);
             await _context.SaveChangesAsync(ct);
             return ApiResponse<bool>.Ok(false, "Confirmación retirada.");
         }
@@ -373,14 +393,14 @@ public class PostService : IPostService
         {
             userCoords = _geometryFactory.CreatePoint(new Coordinate(request.Longitude.Value, request.Latitude.Value));
             // Check if within 500 meters
-            isNearby = post.LocationCoordinates.IsWithinDistance(userCoords, 500.0);
+            isNearby = DistanceMeters(request.Latitude.Value, request.Longitude.Value, post.Latitude, post.Longitude) <= 500;
         }
 
         var confirmation = new PostConfirmation
         {
             PostId = postId,
             UserId = currentUserId,
-            UserCoordinates = userCoords,
+            UserCoordinates = null, // Only retain the proximity result, not a citizen's location.
             IsNearby = isNearby,
             CreatedAt = DateTime.UtcNow
         };
@@ -396,6 +416,15 @@ public class PostService : IPostService
         return ApiResponse<bool>.Ok(true, "Publicación confirmada exitosamente.");
     }
 
+    public static double DistanceMeters(double lat1, double lng1, double lat2, double lng2)
+    {
+        const double radians = Math.PI / 180;
+        var a = Math.Pow(Math.Sin((lat2 - lat1) * radians / 2), 2)
+            + Math.Cos(lat1 * radians) * Math.Cos(lat2 * radians)
+            * Math.Pow(Math.Sin((lng2 - lng1) * radians / 2), 2);
+        return 6371000 * 2 * Math.Asin(Math.Sqrt(Math.Clamp(a, 0, 1)));
+    }
+
     private static void UpdateReputationLevel(User user)
     {
         if (user.ReputationScore >= 300)
@@ -406,7 +435,7 @@ public class PostService : IPostService
             user.ReputationLevel = ReputationLevel.Ciudadano;
     }
 
-    private static PostDto MapToDto(Post post, User user, Category category, Guid? currentUserId)
+    public static PostDto MapToDto(Post post, User user, Category category, Guid? currentUserId)
     {
         bool hasConfirmed = currentUserId.HasValue && post.Confirmations.Any(c => c.UserId == currentUserId.Value);
         ReactionType? userReaction = currentUserId.HasValue
@@ -429,6 +458,7 @@ public class PostService : IPostService
             post.Longitude,
             post.Province,
             post.Municipality,
+            post.Neighborhood,
             post.AddressReference,
             post.Status,
             post.ViewsCount,

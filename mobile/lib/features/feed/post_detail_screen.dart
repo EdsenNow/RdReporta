@@ -4,6 +4,8 @@ import '../../core/constants/api_constants.dart';
 import '../../core/networking/api_client.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/models/models.dart';
+import '../../shared/widgets/auth_guard.dart';
+import '../../shared/widgets/request_state.dart';
 
 class PostDetailScreen extends StatefulWidget {
   final String postId;
@@ -26,6 +28,15 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   late bool _confirmed;
   late int _confirmationsCount;
   int _currentImageIndex = 0;
+  bool _confirming = false;
+  String? _error;
+  final _reportDescription = TextEditingController();
+
+  @override
+  void dispose() {
+    _reportDescription.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -37,28 +48,52 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   }
 
   Future<void> _loadPost() async {
+    setState(() => _error = null);
     if (_post == null) setState(() => _loading = true);
-    final fetched = await _apiClient.getPostById(widget.postId);
-    if (mounted && fetched != null) {
-      setState(() {
-        _post = fetched;
-        _confirmed = fetched.userHasConfirmed;
-        _confirmationsCount = fetched.confirmationsCount;
-        _loading = false;
-      });
-    } else if (mounted) {
-      setState(() => _loading = false);
+    try {
+      final fetched = await _apiClient.getPostById(widget.postId);
+      if (mounted && fetched != null) {
+        setState(() {
+          _post = fetched;
+          _confirmed = fetched.userHasConfirmed;
+          _confirmationsCount = fetched.confirmationsCount;
+          _loading = false;
+        });
+      } else if (mounted) {
+        setState(() {
+          _loading = false;
+          _post = null;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = ApiClient.errorMessage(e);
+        });
+      }
     }
   }
 
   void _toggleConfirm() async {
-    if (_post == null) return;
+    if (_post == null || _confirming || _post!.status != 'Active') return;
+    if (!await requireSession(context) || !mounted) return;
+    if (_confirming) return;
+    _confirming = true;
     setState(() {
       _confirmed = !_confirmed;
       _confirmationsCount += _confirmed ? 1 : -1;
     });
 
     final success = await _apiClient.confirmPost(_post!.id);
+    if (!mounted) return;
+    setState(() => _confirming = false);
+    if (success) {
+      _post!.userHasConfirmed = _confirmed;
+      _post!.confirmationsCount = _confirmationsCount;
+      widget.initialPost?.userHasConfirmed = _confirmed;
+      widget.initialPost?.confirmationsCount = _confirmationsCount;
+    }
     if (!success && mounted) {
       setState(() {
         _confirmed = !_confirmed;
@@ -70,11 +105,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     }
   }
 
-  void _showReportDialog() {
+  void _showReportDialog() async {
+    if (!await requireSession(context) || !mounted) return;
     String selectedReason = 'InformacionFalsa';
-    final descController = TextEditingController();
+    final descController = _reportDescription..clear();
 
-    showModalBottomSheet(
+    await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: context.surfaceColor,
@@ -99,7 +135,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Reportar Incidencia',
+                        'Reportar incidencia',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -121,17 +157,35 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     initialValue: selectedReason,
                     dropdownColor: context.surfaceColor,
                     decoration: const InputDecoration(
-                      labelText: 'Motivo del Reporte',
+                      labelText: 'Motivo del reporte',
                     ),
                     items: const [
-                      DropdownMenuItem(value: 'InformacionFalsa', child: Text('Información falsa o engañosa')),
-                      DropdownMenuItem(value: 'Duplicado', child: Text('Incidencia duplicada o repetida')),
-                      DropdownMenuItem(value: 'Spam', child: Text('Publicidad, spam o irrelevante')),
-                      DropdownMenuItem(value: 'ContenidoInapropiado', child: Text('Contenido ofensivo o inapropiado')),
-                      DropdownMenuItem(value: 'Resuelto', child: Text('Ya fue resuelto en la vía pública')),
+                      DropdownMenuItem(
+                          value: 'InformacionFalsa',
+                          child: Text('Información falsa o engañosa')),
+                      DropdownMenuItem(
+                          value: 'PublicacionDuplicada',
+                          child: Text('Incidencia duplicada o repetida')),
+                      DropdownMenuItem(
+                          value: 'Spam',
+                          child: Text('Publicidad, spam o irrelevante')),
+                      DropdownMenuItem(
+                          value: 'ContenidoViolento',
+                          child: Text('Contenido violento')),
+                      DropdownMenuItem(
+                          value: 'DatosPersonales',
+                          child: Text('Expone datos personales')),
+                      DropdownMenuItem(value: 'Acoso', child: Text('Acoso')),
+                      DropdownMenuItem(
+                          value: 'UbicacionIncorrecta',
+                          child: Text('Ubicación incorrecta')),
+                      DropdownMenuItem(
+                          value: 'Otro', child: Text('Otro motivo')),
                     ],
                     onChanged: (val) {
-                      if (val != null) setModalState(() => selectedReason = val);
+                      if (val != null) {
+                        setModalState(() => selectedReason = val);
+                      }
                     },
                   ),
                   const SizedBox(height: 12),
@@ -139,7 +193,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     controller: descController,
                     maxLines: 3,
                     decoration: const InputDecoration(
-                      hintText: 'Describe brevemente la anomalía (opcional)...',
+                      hintText: 'Describe brevemente la anomalía (opcional)…',
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -148,19 +202,23 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     height: 48,
                     child: ElevatedButton(
                       onPressed: () async {
+                        final description = descController.text.trim();
                         Navigator.pop(context);
                         final ok = await _apiClient.reportPost(
                           postId: widget.postId,
                           reason: selectedReason,
-                          description: descController.text.trim().isNotEmpty ? descController.text.trim() : null,
+                          description:
+                              description.isNotEmpty ? description : null,
                         );
                         if (mounted) {
                           ScaffoldMessenger.of(this.context).showSnackBar(
                             SnackBar(
                               content: Text(ok
                                   ? 'Denuncia enviada a moderación. ¡Gracias!'
-                                  : 'Ya has reportado esta publicación anteriormente.'),
-                              backgroundColor: ok ? RosePineDark.success : Theme.of(this.context).colorScheme.primary,
+                                  : 'No se pudo enviar la denuncia. Puede que ya la hayas enviado; vuelve a intentar si no es así.'),
+                              backgroundColor: ok
+                                  ? RosePineDark.success
+                                  : Theme.of(this.context).colorScheme.primary,
                             ),
                           );
                         }
@@ -170,7 +228,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                         foregroundColor: Colors.white,
                         elevation: 0,
                       ),
-                      child: const Text('Enviar Denuncia'),
+                      child: const Text('Enviar denuncia'),
                     ),
                   ),
                 ],
@@ -191,9 +249,15 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    if (_error != null) {
+      return Scaffold(
+          appBar: AppBar(title: const Text('Detalle de incidencia')),
+          body: RequestState(message: _error!, onRetry: _loadPost));
+    }
+
     if (_loading && _post == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Detalle de Incidencia')),
+        appBar: AppBar(title: const Text('Detalle de incidencia')),
         body: Center(
           child: CircularProgressIndicator(
             color: theme.colorScheme.primary,
@@ -205,7 +269,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
     if (_post == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Detalle de Incidencia')),
+        appBar: AppBar(title: const Text('Detalle de incidencia')),
         body: Center(
           child: Text(
             'Incidencia no encontrada o retirada.',
@@ -218,14 +282,15 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     final post = _post!;
     Color categoryColor;
     try {
-      categoryColor = Color(int.parse(post.categoryColor.replaceFirst('#', '0xFF')));
+      categoryColor =
+          Color(int.parse(post.categoryColor.replaceFirst('#', '0xFF')));
     } catch (_) {
       categoryColor = theme.colorScheme.secondary;
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Detalle de Incidencia'),
+        title: const Text('Detalle de incidencia'),
         actions: [
           IconButton(
             icon: Icon(Icons.flag_outlined, color: theme.colorScheme.primary),
@@ -239,20 +304,28 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
             color: context.surfaceColor,
-            border: Border(top: BorderSide(color: context.borderColor)),
+            border: Border(top: BorderSide(color: context.borderColor, width: 2)),
           ),
           child: Row(
             children: [
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: _toggleConfirm,
-                  icon: Icon(_confirmed ? Icons.check_circle : Icons.check_circle_outline),
+                  onPressed: _confirming || post.status != 'Active'
+                      ? null
+                      : _toggleConfirm,
+                  icon: Icon(_confirmed
+                      ? Icons.check_circle
+                      : Icons.check_circle_outline),
                   label: Text(
-                    _confirmed ? 'Confirmado por ti ($_confirmationsCount)' : 'Confirmar Incidencia ($_confirmationsCount)',
+                    _confirmed
+                        ? 'Confirmado por ti ($_confirmationsCount)'
+                        : 'Confirmar incidencia ($_confirmationsCount)',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _confirmed ? RosePineDark.success : theme.colorScheme.secondary,
+                    backgroundColor: _confirmed
+                        ? RosePineDark.success
+                        : theme.colorScheme.secondary,
                     foregroundColor: Colors.white,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -276,7 +349,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     height: 280,
                     child: PageView.builder(
                       itemCount: post.images.length,
-                      onPageChanged: (idx) => setState(() => _currentImageIndex = idx),
+                      onPageChanged: (idx) =>
+                          setState(() => _currentImageIndex = idx),
                       itemBuilder: (context, index) {
                         return CachedNetworkImage(
                           imageUrl: _formatImageUrl(post.images[index]),
@@ -284,11 +358,14 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                           width: double.infinity,
                           placeholder: (context, url) => Container(
                             color: context.overlayColor,
-                            child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                            child: const Center(
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2)),
                           ),
                           errorWidget: (context, url, error) => Container(
                             color: context.overlayColor,
-                            child: Icon(Icons.broken_image, size: 48, color: context.mutedColor),
+                            child: Icon(Icons.broken_image,
+                                size: 48, color: context.mutedColor),
                           ),
                         );
                       },
@@ -305,7 +382,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                             width: _currentImageIndex == i ? 18 : 7,
                             height: 7,
                             decoration: BoxDecoration(
-                              color: _currentImageIndex == i ? Colors.white : Colors.white60,
+                              color: _currentImageIndex == i
+                                  ? Colors.white
+                                  : Colors.white60,
                               borderRadius: BorderRadius.circular(4),
                             ),
                           );
@@ -321,23 +400,32 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Badges: Categoría y Estado
-                  Row(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
                           color: categoryColor.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: categoryColor.withValues(alpha: 0.3)),
+                          border: Border.all(
+                              color: categoryColor.withValues(alpha: 0.3)),
                         ),
                         child: Text(
                           post.categoryName,
-                          style: TextStyle(color: categoryColor, fontWeight: FontWeight.bold, fontSize: 13),
+                          style: TextStyle(
+                              color: categoryColor,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
                           color: post.status == 'Active'
                               ? RosePineDark.success.withValues(alpha: 0.15)
@@ -347,16 +435,18 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                         child: Text(
                           post.status == 'Active' ? 'Activa' : post.status,
                           style: TextStyle(
-                            color: post.status == 'Active' ? RosePineDark.success : RosePineDark.gold,
+                            color: post.status == 'Active'
+                                ? RosePineDark.success
+                                : RosePineDark.gold,
                             fontWeight: FontWeight.w600,
                             fontSize: 12,
                           ),
                         ),
                       ),
-                      const Spacer(),
                       Text(
                         '${post.createdAt.day}/${post.createdAt.month}/${post.createdAt.year}',
-                        style: TextStyle(color: context.mutedColor, fontSize: 12),
+                        style:
+                            TextStyle(color: context.mutedColor, fontSize: 12),
                       ),
                     ],
                   ),
@@ -380,12 +470,16 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                         radius: 18,
                         backgroundColor: theme.colorScheme.secondary,
                         child: Text(
-                          post.authorUsername.isNotEmpty ? post.authorUsername[0].toUpperCase() : 'C',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          post.authorUsername.isNotEmpty
+                              ? post.authorUsername[0].toUpperCase()
+                              : 'C',
+                          style: const TextStyle(
+                              color: Colors.white, fontWeight: FontWeight.bold),
                         ),
                       ),
                       const SizedBox(width: 10),
-                      Column(
+                      Expanded(
+                          child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
@@ -404,19 +498,18 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                             ),
                           ),
                         ],
-                      ),
-                      const Spacer(),
-                      Text(
-                        '${post.viewsCount} visualizaciones',
-                        style: TextStyle(color: context.mutedColor, fontSize: 12),
-                      ),
+                      )),
                     ],
                   ),
+                  const SizedBox(height: 8),
+                  Text('${post.viewsCount} visualizaciones',
+                      style:
+                          TextStyle(color: context.mutedColor, fontSize: 12)),
                   Divider(height: 32, color: context.borderColor),
 
                   // Descripción Completa
                   Text(
-                    'Detalles del Incidente',
+                    'Detalles de la incidencia',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -440,23 +533,25 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     decoration: BoxDecoration(
                       color: context.surfaceColor,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: context.borderColor),
+                      border: Border.all(color: context.borderColor, width: 2),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.location_on, color: theme.colorScheme.secondary),
+                            Icon(Icons.location_on,
+                                color: theme.colorScheme.secondary),
                             const SizedBox(width: 8),
-                            Text(
-                              'Ubicación Georreferenciada',
+                            Expanded(
+                                child: Text(
+                              'Ubicación georreferenciada',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
                                 color: context.textPrimaryColor,
                               ),
-                            ),
+                            )),
                           ],
                         ),
                         const SizedBox(height: 8),
@@ -468,17 +563,31 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                             color: context.textPrimaryColor,
                           ),
                         ),
-                        if (post.addressReference != null && post.addressReference!.isNotEmpty) ...[
+                        if (post.neighborhood != null &&
+                            post.neighborhood!.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            'Barrio o sector: ${post.neighborhood}',
+                            style: TextStyle(
+                              color: context.subtleColor,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                        if (post.addressReference != null &&
+                            post.addressReference!.isNotEmpty) ...[
                           const SizedBox(height: 4),
                           Text(
                             'Referencia: ${post.addressReference}',
-                            style: TextStyle(fontSize: 13, color: context.subtleColor),
+                            style: TextStyle(
+                                fontSize: 13, color: context.subtleColor),
                           ),
                         ],
                         const SizedBox(height: 6),
                         Text(
                           'Coordenadas: ${post.latitude.toStringAsFixed(4)}, ${post.longitude.toStringAsFixed(4)}',
-                          style: TextStyle(fontSize: 12, color: context.mutedColor),
+                          style: TextStyle(
+                              fontSize: 12, color: context.mutedColor),
                         ),
                       ],
                     ),
@@ -491,18 +600,20 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     decoration: BoxDecoration(
                       color: RosePineDark.success.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: RosePineDark.success.withValues(alpha: 0.25)),
+                      border: Border.all(
+                          color: RosePineDark.success.withValues(alpha: 0.25)),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.verified, color: RosePineDark.success, size: 28),
+                        const Icon(Icons.verified,
+                            color: RosePineDark.success, size: 28),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '$_confirmationsCount Confirmaciones Ciudadanas',
+                                '$_confirmationsCount confirmaciones ciudadanas',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: context.textPrimaryColor,
@@ -512,7 +623,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                               const SizedBox(height: 2),
                               Text(
                                 'Los ciudadanos avalan la veracidad de este reporte.',
-                                style: TextStyle(fontSize: 12, color: context.subtleColor),
+                                style: TextStyle(
+                                    fontSize: 12, color: context.subtleColor),
                               ),
                             ],
                           ),

@@ -6,9 +6,9 @@ namespace RdReporta.Application.DTOs;
 public record RegisterRequest(
     [Required, MinLength(3), MaxLength(50)] string Username,
     [Required, EmailAddress] string Email,
-    [Required, MinLength(6)] string Password,
-    string? Province,
-    string? Municipality
+    [Required, MinLength(6), MaxLength(72)] string Password,
+    [MaxLength(100)] string? Province,
+    [MaxLength(100)] string? Municipality
 );
 
 public record LoginRequest(
@@ -35,6 +35,7 @@ public record RefreshTokenRequest(
 public record UserProfileDto(
     Guid Id,
     string Username,
+    string DisplayName,
     string Email,
     string? AvatarUrl,
     string? Province,
@@ -43,11 +44,21 @@ public record UserProfileDto(
     ReputationLevel ReputationLevel,
     int TotalPosts,
     int TotalConfirmationsReceived,
-    DateTime MemberSince
+    DateTime MemberSince,
+    DateTime? UsernameCanChangeAt,
+    bool IsVerified,
+    int FollowersCount,
+    int FollowingCount,
+    bool IsFollowing
 );
+
+public record NotificationDto(Guid Id, Guid ActorUserId, Guid? PostId, string Type,
+    string Message, bool IsRead, DateTime CreatedAt);
 
 public record UpdateProfileRequest(
     string? AvatarUrl,
-    string? Province,
-    string? Municipality
+    [MinLength(2), MaxLength(80)] string? DisplayName,
+    [MinLength(3), MaxLength(30)] string? Username,
+    [MaxLength(100)] string? Province,
+    [MaxLength(100)] string? Municipality
 );

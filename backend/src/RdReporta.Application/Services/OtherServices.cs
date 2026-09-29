@@ -112,6 +112,7 @@ public class UserService : IUserService
         var dto = new UserProfileDto(
             user.Id,
             user.Username,
+            string.IsNullOrWhiteSpace(user.DisplayName) ? user.Username : user.DisplayName,
             user.Email,
             user.AvatarUrl,
             user.Province,
@@ -120,7 +121,12 @@ public class UserService : IUserService
             user.ReputationLevel,
             totalPosts,
             totalConfirmations,
-            user.CreatedAt
+            user.CreatedAt,
+            user.UsernameChangedAt?.AddDays(15),
+            user.IsVerified,
+            await _context.UserFollows.CountAsync(x => x.FollowedId == userId, ct),
+            await _context.UserFollows.CountAsync(x => x.FollowerId == userId, ct),
+            false
         );
 
         return ApiResponse<UserProfileDto>.Ok(dto);
@@ -135,6 +141,27 @@ public class UserService : IUserService
         }
 
         if (!string.IsNullOrWhiteSpace(request.AvatarUrl)) user.AvatarUrl = request.AvatarUrl.Trim();
+        if (!string.IsNullOrWhiteSpace(request.DisplayName)) user.DisplayName = request.DisplayName.Trim();
+        if (!string.IsNullOrWhiteSpace(request.Username))
+        {
+            var username = request.Username.Trim();
+            if (!System.Text.RegularExpressions.Regex.IsMatch(username, "^[a-zA-Z0-9_]+$"))
+                return ApiResponse<UserProfileDto>.Fail("El @usuario solo puede contener letras, números y guion bajo.");
+
+            if (!string.Equals(username, user.Username, StringComparison.OrdinalIgnoreCase))
+            {
+                var nextChange = user.UsernameChangedAt?.AddDays(15);
+                if (nextChange.HasValue && nextChange.Value > DateTime.UtcNow)
+                    return ApiResponse<UserProfileDto>.Fail($"Podrás cambiar tu @usuario nuevamente el {nextChange.Value:dd/MM/yyyy}.");
+
+                var normalized = username.ToLowerInvariant();
+                if (await _context.Users.AnyAsync(u => u.Id != userId && u.Username.ToLower() == normalized, ct))
+                    return ApiResponse<UserProfileDto>.Fail("Ese @usuario ya está en uso.");
+
+                user.Username = username;
+                user.UsernameChangedAt = DateTime.UtcNow;
+            }
+        }
         if (!string.IsNullOrWhiteSpace(request.Province)) user.Province = request.Province.Trim();
         if (!string.IsNullOrWhiteSpace(request.Municipality)) user.Municipality = request.Municipality.Trim();
         user.UpdatedAt = DateTime.UtcNow;
@@ -195,6 +222,8 @@ public class ModerationService : IModerationService
 
     public async Task<ApiResponse<PagedResult<ModerationReportDto>>> GetPendingReportsAsync(int pageNumber, int pageSize, CancellationToken ct = default)
     {
+        pageNumber = Math.Max(1, pageNumber);
+        pageSize = Math.Clamp(pageSize, 1, 100);
         var query = _context.ModerationReports
             .Include(r => r.Post)
             .Include(r => r.ReporterUser)
@@ -243,12 +272,17 @@ public class ModerationService : IModerationService
             return ApiResponse<bool>.Fail("Reporte de moderación no encontrado.");
         }
 
+        if (report.Status != ModerationStatus.Pending)
+            return ApiResponse<bool>.Fail("Esta denuncia ya fue resuelta.");
+        if (request.Status == ModerationStatus.Pending || !Enum.IsDefined(request.Status)
+            || (request.HidePost && request.Status != ModerationStatus.ActionTaken))
+            return ApiResponse<bool>.Fail("La resolución seleccionada no es válida.");
         report.Status = request.Status;
         report.ResolutionNotes = request.ResolutionNotes?.Trim();
         report.ReviewedByUserId = moderatorUserId;
         report.ReviewedAt = DateTime.UtcNow;
 
-        if (request.HidePost && report.Post != null)
+        if (request.HidePost && report.Post != null && report.Post.Status != PostStatus.Hidden)
         {
             report.Post.Status = PostStatus.Hidden;
             report.Post.UpdatedAt = DateTime.UtcNow;

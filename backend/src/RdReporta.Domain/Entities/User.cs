@@ -5,6 +5,8 @@ namespace RdReporta.Domain.Entities;
 public class User : BaseEntity<Guid>
 {
     public string Username { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public DateTime? UsernameChangedAt { get; set; }
     public string Email { get; set; } = string.Empty;
     public string? PasswordHash { get; set; }
     public string? AvatarUrl { get; set; }

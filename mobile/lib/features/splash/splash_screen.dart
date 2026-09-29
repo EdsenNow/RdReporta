@@ -63,7 +63,7 @@ class _SplashScreenState extends State<SplashScreen> {
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: context.borderColor, width: 1.5),
+                border: Border.all(color: context.borderColor, width: 2),
               ),
               child: const Center(
                 child: Text(
@@ -89,7 +89,7 @@ class _SplashScreenState extends State<SplashScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Información e Incidencias en República Dominicana',
+              'Información e incidencias en República Dominicana',
               style: TextStyle(
                 color: context.subtleColor,
                 fontSize: 13,

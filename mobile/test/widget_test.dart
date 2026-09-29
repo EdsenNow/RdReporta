@@ -1,8 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rdreporta/main.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 void main() {
   testWidgets('RDReporta app smoke test', (WidgetTester tester) async {
+    FlutterSecureStorage.setMockInitialValues({});
     // Build RDReporta app and trigger a frame.
     await tester.pumpWidget(const RdReportaApp());
     expect(find.text('RDReporta'), findsOneWidget);

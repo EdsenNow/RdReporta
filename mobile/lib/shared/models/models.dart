@@ -46,6 +46,7 @@ class PostModel {
   final double longitude;
   final String province;
   final String municipality;
+  final String? neighborhood;
   final String? addressReference;
   final String status;
   final int viewsCount;
@@ -73,6 +74,7 @@ class PostModel {
     required this.longitude,
     required this.province,
     required this.municipality,
+    this.neighborhood,
     this.addressReference,
     required this.status,
     required this.viewsCount,
@@ -102,13 +104,18 @@ class PostModel {
       longitude: (json['longitude'] as num).toDouble(),
       province: json['province'] as String,
       municipality: json['municipality'] as String,
+      neighborhood: json['neighborhood'] as String?,
       addressReference: json['addressReference'] as String?,
       status: json['status']?.toString() ?? 'Active',
       viewsCount: json['viewsCount'] as int? ?? 0,
       reactionsCount: json['reactionsCount'] as int? ?? 0,
       confirmationsCount: json['confirmationsCount'] as int? ?? 0,
-      images: (json['images'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
-      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ?? DateTime.now(),
+      images: (json['images'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
+          DateTime.now(),
       distanceInMeters: (json['distanceInMeters'] as num?)?.toDouble(),
       userHasConfirmed: json['userHasConfirmed'] as bool? ?? false,
       userReaction: json['userReaction']?.toString(),
@@ -152,7 +159,8 @@ class PostMapPinModel {
       title: json['title'] as String,
       thumbnailUrl: json['thumbnailUrl'] as String?,
       confirmationsCount: json['confirmationsCount'] as int? ?? 0,
-      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ?? DateTime.now(),
+      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
+          DateTime.now(),
     );
   }
 }
@@ -160,6 +168,7 @@ class PostMapPinModel {
 class UserModel {
   final String id;
   final String username;
+  final String displayName;
   final String email;
   final String? avatarUrl;
   final String? province;
@@ -169,10 +178,16 @@ class UserModel {
   final int totalPosts;
   final int totalConfirmations;
   final DateTime createdAt;
+  final DateTime? usernameCanChangeAt;
+  final bool isVerified;
+  int followersCount;
+  final int followingCount;
+  bool isFollowing;
 
   UserModel({
     required this.id,
     required this.username,
+    required this.displayName,
     required this.email,
     this.avatarUrl,
     this.province,
@@ -182,12 +197,18 @@ class UserModel {
     required this.totalPosts,
     required this.totalConfirmations,
     required this.createdAt,
+    this.usernameCanChangeAt,
+    required this.isVerified,
+    required this.followersCount,
+    required this.followingCount,
+    required this.isFollowing,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
       id: json['id'] as String,
       username: json['username'] as String,
+      displayName: json['displayName'] as String? ?? json['username'] as String,
       email: json['email'] as String,
       avatarUrl: json['avatarUrl'] as String?,
       province: json['province'] as String?,
@@ -195,8 +216,32 @@ class UserModel {
       reputationScore: json['reputationScore'] as int? ?? 100,
       reputationLevel: json['reputationLevel']?.toString() ?? 'Ciudadano',
       totalPosts: json['totalPosts'] as int? ?? 0,
-      totalConfirmations: json['totalConfirmations'] as int? ?? 0,
-      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ?? DateTime.now(),
+      totalConfirmations: json['totalConfirmationsReceived'] as int? ?? 0,
+      createdAt: DateTime.tryParse(json['memberSince']?.toString() ?? '') ??
+          DateTime.now(),
+      usernameCanChangeAt:
+          DateTime.tryParse(json['usernameCanChangeAt']?.toString() ?? ''),
+      isVerified: json['isVerified'] as bool? ?? false,
+      followersCount: json['followersCount'] as int? ?? 0,
+      followingCount: json['followingCount'] as int? ?? 0,
+      isFollowing: json['isFollowing'] as bool? ?? false,
     );
   }
+}
+
+class NotificationModel {
+  final String id;
+  final String actorUserId;
+  final String? postId;
+  final String message;
+  final bool isRead;
+  final DateTime createdAt;
+
+  NotificationModel.fromJson(Map<String, dynamic> json)
+      : id = json['id'] as String,
+        actorUserId = json['actorUserId'] as String,
+        postId = json['postId'] as String?,
+        message = json['message'] as String,
+        isRead = json['isRead'] as bool? ?? false,
+        createdAt = DateTime.tryParse(json['createdAt']?.toString() ?? '') ?? DateTime.now();
 }

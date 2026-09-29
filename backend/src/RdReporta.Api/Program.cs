@@ -9,6 +9,9 @@ using RdReporta.Application.Common.Interfaces;
 using RdReporta.Infrastructure;
 using RdReporta.Infrastructure.Persistence;
 using Scalar.AspNetCore;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,6 +30,14 @@ builder.Services.AddOpenApi();
 builder.Services.AddInfrastructureServices(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddDataProtection().SetApplicationName("RDReporta");
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 15, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+});
 
 // 4. JWT Authentication
 var jwtSecretKey = builder.Configuration["Jwt:SecretKey"] ?? "RDReporta_UltraSecure_SuperSecretKey_2026_DevelopmentOnly_ChangeInProduction!@#$";
@@ -84,6 +95,7 @@ using (var scope = app.Services.CreateScope())
         {
             // Ensures DB is created and extension is present
             await context.Database.EnsureCreatedAsync();
+            await DbInitializer.UpgradeSchemaAsync(context);
         }
         await DbInitializer.SeedAsync(context, hasher);
         logger.LogInformation("Base de datos y datos semilla inicializados con éxito.");
@@ -108,8 +120,15 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseStaticFiles(); // Serve uploaded images in wwwroot
+// Create the directory before static-file middleware initializes its file provider.
+var uploadsRoot = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+Directory.CreateDirectory(Path.Combine(uploadsRoot, "uploads"));
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadsRoot)
+});
 app.UseCors("AllowAll");
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();

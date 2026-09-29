@@ -12,6 +12,7 @@ public interface IAuthService
     Task<ApiResponse<AuthResponse>> RegisterAsync(RegisterRequest request, CancellationToken ct = default);
     Task<ApiResponse<AuthResponse>> LoginAsync(LoginRequest request, CancellationToken ct = default);
     Task<ApiResponse<AuthResponse>> RefreshTokenAsync(RefreshTokenRequest request, CancellationToken ct = default);
+    Task<ApiResponse<AuthResponse>> ExternalLoginAsync(string email, string displayName, string? avatarUrl, CancellationToken ct = default);
 }
 
 public class AuthService : IAuthService
@@ -57,6 +58,7 @@ public class AuthService : IAuthService
         {
             Id = Guid.NewGuid(),
             Username = request.Username.Trim(),
+            DisplayName = request.Username.Trim(),
             Email = normalizedEmail,
             PasswordHash = _passwordHasher.Hash(request.Password),
             Province = request.Province,
@@ -138,6 +140,53 @@ public class AuthService : IAuthService
         return ApiResponse<AuthResponse>.Ok(response, "Inicio de sesión exitoso.");
     }
 
+    public async Task<ApiResponse<AuthResponse>> ExternalLoginAsync(
+        string email, string displayName, string? avatarUrl, CancellationToken ct = default)
+    {
+        var normalizedEmail = email.Trim().ToLowerInvariant();
+        var user = await _context.Users.Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
+            .FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail, ct);
+
+        if (user == null)
+        {
+            var role = await _context.Roles.FirstAsync(r => r.Name == "Ciudadano", ct);
+            var baseName = new string(normalizedEmail.Split('@')[0]
+                .Where(c => char.IsLetterOrDigit(c) || c == '_').ToArray());
+            if (baseName.Length < 3) baseName = "ciudadano";
+            baseName = baseName[..Math.Min(baseName.Length, 22)];
+            var username = baseName;
+            var suffix = 1;
+            while (await _context.Users.AnyAsync(u => u.Username.ToLower() == username.ToLower(), ct))
+                username = $"{baseName}_{suffix++}";
+
+            user = new User
+            {
+                Id = Guid.NewGuid(), Username = username,
+                DisplayName = string.IsNullOrWhiteSpace(displayName) ? username : displayName.Trim(),
+                Email = normalizedEmail, AvatarUrl = avatarUrl, IsActive = true,
+                IsVerified = false, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
+            };
+            user.UserRoles.Add(new UserRole { User = user, Role = role });
+            _context.Users.Add(user);
+        }
+        else if (!user.IsActive)
+            return ApiResponse<AuthResponse>.Fail("Esta cuenta ha sido suspendida.");
+
+        var roles = user.UserRoles.Select(x => x.Role.Name).ToList();
+        if (roles.Count == 0) roles.Add("Ciudadano");
+        var refreshToken = _jwtTokenService.GenerateRefreshToken();
+        user.RefreshToken = refreshToken;
+        user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(14);
+        user.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync(ct);
+
+        return ApiResponse<AuthResponse>.Ok(new AuthResponse(
+            user.Id, user.Username, user.Email,
+            _jwtTokenService.GenerateAccessToken(user, roles), refreshToken,
+            DateTime.UtcNow.AddHours(2), roles, user.ReputationLevel),
+            "Inicio de sesión con Google exitoso.");
+    }
+
     public async Task<ApiResponse<AuthResponse>> RefreshTokenAsync(RefreshTokenRequest request, CancellationToken ct = default)
     {
         var principal = _jwtTokenService.GetPrincipalFromExpiredToken(request.AccessToken);
@@ -157,7 +206,7 @@ public class AuthService : IAuthService
                 .ThenInclude(ur => ur.Role)
             .FirstOrDefaultAsync(u => u.Id == userId, ct);
 
-        if (user == null || user.RefreshToken != request.RefreshToken || user.RefreshTokenExpiryTime <= DateTime.UtcNow)
+        if (user == null || !user.IsActive || user.RefreshToken != request.RefreshToken || user.RefreshTokenExpiryTime == null || user.RefreshTokenExpiryTime <= DateTime.UtcNow)
         {
             return ApiResponse<AuthResponse>.Fail("Refresh token inválido o expirado.");
         }

@@ -4,6 +4,9 @@ using RdReporta.Application.Common.Interfaces;
 using RdReporta.Application.DTOs;
 using RdReporta.Application.Services;
 using RdReporta.Domain.Enums;
+using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
+using RdReporta.Application.Common.Models;
 
 namespace RdReporta.Api.Controllers;
 
@@ -47,6 +50,34 @@ public class PostsController : ControllerBase
     {
         var response = await _postService.GetRecentAsync(page, pageSize, categoryId, _currentUserService.UserId, ct);
         return Ok(response);
+    }
+
+    [HttpGet("stats")]
+    public async Task<IActionResult> Stats([FromServices] IApplicationDbContext db, CancellationToken ct)
+    {
+        var visible = db.Posts.Where(p => p.Status == PostStatus.Active || p.Status == PostStatus.Resolved);
+        return Ok(new { success = true, data = new {
+            totalPosts = await visible.CountAsync(ct),
+            activePosts = await visible.CountAsync(p => p.Status == PostStatus.Active, ct),
+            resolvedPosts = await visible.CountAsync(p => p.Status == PostStatus.Resolved, ct),
+            totalConfirmations = await visible.SumAsync(p => p.ConfirmationsCount, ct)
+        }});
+    }
+
+    [Authorize]
+    [HttpGet("mine")]
+    public async Task<IActionResult> Mine([FromServices] IApplicationDbContext db,
+        [FromQuery, Range(1, int.MaxValue)] int page = 1, CancellationToken ct = default)
+    {
+        var query = db.Posts.AsNoTracking().Where(p => p.UserId == _currentUserService.UserId);
+        var total = await query.CountAsync(ct);
+        var posts = await query.Include(p => p.User).Include(p => p.Category).Include(p => p.Images)
+            .Include(p => p.Reactions).Include(p => p.Confirmations)
+            .OrderByDescending(p => p.CreatedAt).Skip((page - 1) * 20).Take(20).ToListAsync(ct);
+        return Ok(ApiResponse<PagedResult<PostDto>>.Ok(new PagedResult<PostDto> {
+            Items = posts.Select(p => RdReporta.Application.Services.PostService.MapToDto(p, p.User, p.Category, _currentUserService.UserId)).ToList(),
+            TotalCount = total, PageNumber = page, PageSize = 20
+        }));
     }
 
     [HttpGet("nearby")]
@@ -184,6 +215,7 @@ public class UploadsController : ControllerBase
     [Authorize]
     [HttpPost("image")]
     [Consumes("multipart/form-data")]
+    [RequestSizeLimit(11 * 1024 * 1024)]
     public async Task<IActionResult> UploadImage(IFormFile file, CancellationToken ct)
     {
         if (file == null || file.Length == 0)
@@ -204,6 +236,16 @@ public class UploadsController : ControllerBase
         }
 
         using var stream = file.OpenReadStream();
+        var header = new byte[12];
+        var read = await stream.ReadAsync(header, ct);
+        var valid = read >= 12 && (ext switch {
+            ".jpg" or ".jpeg" => header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF,
+            ".png" => header.AsSpan(0, 8).SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }),
+            ".webp" => System.Text.Encoding.ASCII.GetString(header, 0, 4) == "RIFF" && System.Text.Encoding.ASCII.GetString(header, 8, 4) == "WEBP",
+            _ => false
+        });
+        if (!valid) return BadRequest(new { success = false, message = "El archivo no corresponde al formato de imagen indicado." });
+        stream.Position = 0;
         var url = await _storageService.UploadFileAsync(stream, file.FileName, file.ContentType, ct);
 
         return Ok(new { success = true, url });

@@ -1,4 +1,4 @@
-package com.example.rdreporta
+package com.rdreporta.app
 
 import io.flutter.embedding.android.FlutterActivity
 

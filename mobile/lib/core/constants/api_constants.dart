@@ -1,9 +1,13 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart';
 
 class ApiConstants {
   // Use 10.0.2.2 for Android Emulator, localhost for iOS simulator, or custom host
   static String get baseUrl {
-    if (Platform.isAndroid) {
+    const configured = String.fromEnvironment('API_BASE_URL');
+    if (configured.isNotEmpty) {
+      return configured.replaceFirst(RegExp(r'/$'), '');
+    }
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       return 'http://10.0.2.2:5000/api';
     } else {
       return 'http://localhost:5000/api';
@@ -11,20 +15,16 @@ class ApiConstants {
   }
 
   static String get hostUrl {
-    if (Platform.isAndroid) {
-      return 'http://10.0.2.2:5000';
-    } else {
-      return 'http://localhost:5000';
-    }
+    return baseUrl.replaceFirst(RegExp(r'/api$'), '');
   }
 
   static const String authRegister = '/auth/register';
   static const String authLogin = '/auth/login';
   static const String authRefresh = '/auth/refresh';
-  
+
   static const String usersMe = '/users/me';
   static const String categories = '/categories';
-  
+
   static const String postsRecent = '/posts/recent';
   static const String postsNearby = '/posts/nearby';
   static const String postsPopular = '/posts/popular';

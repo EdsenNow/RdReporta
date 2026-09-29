@@ -17,21 +17,22 @@ public record CreateCategoryRequest(
     [Required, MaxLength(50)] string Name,
     [Required, MaxLength(60)] string Slug,
     string? Description,
-    [Required] string IconName,
-    [Required] string ColorHex,
+    [Required, MaxLength(50)] string IconName,
+    [Required, RegularExpression("^#[0-9a-fA-F]{6}$")] string ColorHex,
     int DisplayOrder
 );
 
 public record CreatePostRequest(
     [Required] int CategoryId,
     [Required, MaxLength(150)] string Title,
-    [Required] string Description,
-    [Required] double Latitude,
-    [Required] double Longitude,
-    [Required] string Province,
-    [Required] string Municipality,
-    string? AddressReference,
-    List<string>? ImageUrls
+    [Required, MaxLength(5000)] string Description,
+    [Range(-90, 90)] double Latitude,
+    [Range(-180, 180)] double Longitude,
+    [Required, MaxLength(100)] string Province,
+    [Required, MaxLength(100)] string Municipality,
+    [MaxLength(100)] string? Neighborhood,
+    [MaxLength(255)] string? AddressReference,
+    [MaxLength(4)] List<string>? ImageUrls
 );
 
 public record PostDto(
@@ -50,6 +51,7 @@ public record PostDto(
     double Longitude,
     string Province,
     string Municipality,
+    string? Neighborhood,
     string? AddressReference,
     PostStatus Status,
     int ViewsCount,
@@ -76,26 +78,26 @@ public record PostMapPinDto(
 );
 
 public record NearbyPostsRequest(
-    [Required] double Latitude,
-    [Required] double Longitude,
-    double RadiusKm = 10.0,
+    [Range(-90, 90)] double Latitude,
+    [Range(-180, 180)] double Longitude,
+    [Range(0.1, 100)] double RadiusKm = 10.0,
     int? CategoryId = null,
-    int PageNumber = 1,
-    int PageSize = 20
+    [Range(1, int.MaxValue)] int PageNumber = 1,
+    [Range(1, 100)] int PageSize = 20
 );
 
 public record PostReactionRequest(
-    [Required] ReactionType ReactionType
+    [EnumDataType(typeof(ReactionType))] ReactionType ReactionType
 );
 
 public record PostConfirmationRequest(
-    double? Latitude,
-    double? Longitude
+    [Range(-90, 90)] double? Latitude,
+    [Range(-180, 180)] double? Longitude
 );
 
 public record CreateModerationReportRequest(
     [Required] Guid PostId,
-    [Required] ModerationReason Reason,
+    [EnumDataType(typeof(ModerationReason))] ModerationReason Reason,
     string? Description
 );
 
