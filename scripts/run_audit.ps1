@@ -88,7 +88,7 @@ Pop-Location
 Complete-Check ($npmAudit -eq 0) "npm no informó vulnerabilidades altas o críticas." "npm informó vulnerabilidades altas/críticas o no pudo completar el análisis."
 
 Write-Host "[10/$total] Secretos y credenciales predeterminadas en archivos rastreados"
-$secretHits = @(git grep -n -E 'RDReporta_UltraSecure|postgres_dev_password|Admin123!' -- ':!AUDITORIA_Y_SEGURIDAD.md' ':!CONFIGURACION_SERVICIOS.md' ':!scripts/run_audit.ps1' 2>$null)
+$secretHits = @(git grep -n -E 'RDReporta_UltraSecure|postgres_dev_password|Admin123!' -- ':!scripts/run_audit.ps1' 2>$null)
 $secretScanExit = $LASTEXITCODE
 Complete-Check ($secretHits.Count -eq 0 -and $secretScanExit -eq 1) "No hay secretos de desarrollo conocidos en el código rastreado." "La búsqueda falló o encontró credenciales predeterminadas."
 

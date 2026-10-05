@@ -87,6 +87,8 @@ mobile/android/gradlew
 mobile/android/gradlew.bat
 mobile/android/local.properties
 mobile/android/**/GeneratedPluginRegistrant.java
+mobile/android/app/google-services.json
+mobile/ios/Runner/GoogleService-Info.plist
 
 # --- Docker & Database ---
 .artifacts/
