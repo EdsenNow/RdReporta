@@ -19,8 +19,6 @@ void main() {
       await tester.tap(find.text('Continuar con Google'));
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.byType(HomeScreen), findsNothing);
-      expect(find.textContaining('estará disponible próximamente'),
-          findsOneWidget);
       expect(await const FlutterSecureStorage().read(key: 'jwt_token'), isNull);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());

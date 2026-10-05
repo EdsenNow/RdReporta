@@ -6,6 +6,9 @@ import '../../core/theme/app_theme.dart';
 import '../../shared/models/models.dart';
 import '../../shared/widgets/auth_guard.dart';
 import '../../shared/widgets/request_state.dart';
+import '../../shared/widgets/report_post_sheet.dart';
+import '../../shared/widgets/post_reaction_bar.dart';
+import '../../shared/widgets/post_media_carousel.dart';
 
 class PostDetailScreen extends StatefulWidget {
   final String postId;
@@ -25,16 +28,14 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   final ApiClient _apiClient = ApiClient();
   PostModel? _post;
   bool _loading = false;
-  late bool _confirmed;
-  late int _confirmationsCount;
-  int _currentImageIndex = 0;
-  bool _confirming = false;
+
   String? _error;
-  final _reportDescription = TextEditingController();
+  late ValueNotifier<int> _views;
 
   @override
   void dispose() {
-    _reportDescription.dispose();
+    _views.removeListener(_viewsChanged);
+    _apiClient.postViews.unwatch(widget.postId);
     super.dispose();
   }
 
@@ -42,9 +43,28 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   void initState() {
     super.initState();
     _post = widget.initialPost;
-    _confirmed = widget.initialPost?.userHasConfirmed ?? false;
-    _confirmationsCount = widget.initialPost?.confirmationsCount ?? 0;
+    _watchViews();
     _loadPost();
+    _recordDetailView();
+  }
+
+  void _watchViews() {
+    _views = _apiClient.postViews.watch(
+        widget.postId, widget.initialPost?.viewsCount ?? 0);
+    _views.addListener(_viewsChanged);
+  }
+
+  void _viewsChanged() {
+    if (mounted && _post != null) {
+      setState(() => _post!.viewsCount = _views.value);
+    }
+  }
+
+  Future<void> _recordDetailView() async {
+    final count = await _apiClient.recordPostView(widget.postId);
+    if (count != null && mounted && _post != null) {
+      setState(() => _post!.viewsCount = count);
+    }
   }
 
   Future<void> _loadPost() async {
@@ -55,8 +75,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       if (mounted && fetched != null) {
         setState(() {
           _post = fetched;
-          _confirmed = fetched.userHasConfirmed;
-          _confirmationsCount = fetched.confirmationsCount;
+
           _loading = false;
         });
       } else if (mounted) {
@@ -75,168 +94,160 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     }
   }
 
-  void _toggleConfirm() async {
-    if (_post == null || _confirming || _post!.status != 'Active') return;
+  void _showReportDialog() async {
     if (!await requireSession(context) || !mounted) return;
-    if (_confirming) return;
-    _confirming = true;
-    setState(() {
-      _confirmed = !_confirmed;
-      _confirmationsCount += _confirmed ? 1 : -1;
-    });
-
-    final success = await _apiClient.confirmPost(_post!.id);
-    if (!mounted) return;
-    setState(() => _confirming = false);
-    if (success) {
-      _post!.userHasConfirmed = _confirmed;
-      _post!.confirmationsCount = _confirmationsCount;
-      widget.initialPost?.userHasConfirmed = _confirmed;
-      widget.initialPost?.confirmationsCount = _confirmationsCount;
-    }
-    if (!success && mounted) {
-      setState(() {
-        _confirmed = !_confirmed;
-        _confirmationsCount += _confirmed ? 1 : -1;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo registrar la confirmación')),
-      );
+    final sent = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ReportPostSheet(postId: widget.postId),
+    );
+    if (sent == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: const Row(children: [
+          Icon(Icons.check_circle_outline_rounded, size: 20),
+          SizedBox(width: 10),
+          Expanded(
+              child: Text(
+                  'Denuncia enviada a moderación. Gracias por avisarnos.')),
+        ]),
+      ));
     }
   }
 
-  void _showReportDialog() async {
-    if (!await requireSession(context) || !mounted) return;
-    String selectedReason = 'InformacionFalsa';
-    final descController = _reportDescription..clear();
+  String _getRelativeTime(DateTime dateTime) {
+    final diff = DateTime.now().difference(dateTime);
+    if (diff.inDays > 0) {
+      return 'hace ${diff.inDays} ${diff.inDays == 1 ? "día" : "días"}';
+    }
+    if (diff.inHours > 0) {
+      return 'hace ${diff.inHours} ${diff.inHours == 1 ? "hora" : "horas"}';
+    }
+    if (diff.inMinutes > 0) {
+      return 'hace ${diff.inMinutes} ${diff.inMinutes == 1 ? "min" : "mins"}';
+    }
+    return 'hace un momento';
+  }
 
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: context.surfaceColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 20,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildAuthorHeader(PostModel post, Color categoryColor) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CircleAvatar(
+          radius: 20,
+          backgroundColor: Theme.of(context).colorScheme.secondary,
+          backgroundImage:
+              (post.authorAvatarUrl != null && post.authorAvatarUrl!.isNotEmpty)
+                  ? CachedNetworkImageProvider(
+                      _formatImageUrl(post.authorAvatarUrl!))
+                  : null,
+          child: (post.authorAvatarUrl == null || post.authorAvatarUrl!.isEmpty)
+              ? Text(
+                  post.authorDisplayName.isNotEmpty
+                      ? post.authorDisplayName[0].toUpperCase()
+                      : 'C',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16),
+                )
+              : null,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Reportar incidencia',
-                        style: TextStyle(
-                          fontSize: 18,
+                  Flexible(
+                    child: Text(
+                      post.authorDisplayName,
+                      style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: context.textPrimaryColor,
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.close, color: context.subtleColor),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
-                  ),
-                  Text(
-                    'Ayúdanos a mantener la calidad y veracidad informativa en la comunidad.',
-                    style: TextStyle(color: context.subtleColor, fontSize: 13),
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedReason,
-                    dropdownColor: context.surfaceColor,
-                    decoration: const InputDecoration(
-                      labelText: 'Motivo del reporte',
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                          value: 'InformacionFalsa',
-                          child: Text('Información falsa o engañosa')),
-                      DropdownMenuItem(
-                          value: 'PublicacionDuplicada',
-                          child: Text('Incidencia duplicada o repetida')),
-                      DropdownMenuItem(
-                          value: 'Spam',
-                          child: Text('Publicidad, spam o irrelevante')),
-                      DropdownMenuItem(
-                          value: 'ContenidoViolento',
-                          child: Text('Contenido violento')),
-                      DropdownMenuItem(
-                          value: 'DatosPersonales',
-                          child: Text('Expone datos personales')),
-                      DropdownMenuItem(value: 'Acoso', child: Text('Acoso')),
-                      DropdownMenuItem(
-                          value: 'UbicacionIncorrecta',
-                          child: Text('Ubicación incorrecta')),
-                      DropdownMenuItem(
-                          value: 'Otro', child: Text('Otro motivo')),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) {
-                        setModalState(() => selectedReason = val);
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: descController,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      hintText: 'Describe brevemente la anomalía (opcional)…',
+                          fontSize: 15,
+                          color: context.textPrimaryColor),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        final description = descController.text.trim();
-                        Navigator.pop(context);
-                        final ok = await _apiClient.reportPost(
-                          postId: widget.postId,
-                          reason: selectedReason,
-                          description:
-                              description.isNotEmpty ? description : null,
-                        );
-                        if (mounted) {
-                          ScaffoldMessenger.of(this.context).showSnackBar(
-                            SnackBar(
-                              content: Text(ok
-                                  ? 'Denuncia enviada a moderación. ¡Gracias!'
-                                  : 'No se pudo enviar la denuncia. Puede que ya la hayas enviado; vuelve a intentar si no es así.'),
-                              backgroundColor: ok
-                                  ? RosePineDark.success
-                                  : Theme.of(this.context).colorScheme.primary,
-                            ),
-                          );
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                      ),
-                      child: const Text('Enviar denuncia'),
+                  if (post.authorIsVerified) ...[
+                    const SizedBox(width: 4),
+                    Icon(Icons.verified_rounded, color: context.pineColor, size: 16),
+                  ]
+                ],
+              ),
+              const SizedBox(height: 2),
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      '@${post.authorUsername}',
+                      style: TextStyle(
+                          fontSize: 13,
+                          color: context.subtleColor,
+                          fontWeight: FontWeight.w500),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      '• ${_getRelativeTime(post.createdAt)}',
+                      style: TextStyle(fontSize: 13, color: context.mutedColor),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
               ),
-            );
-          },
-        );
-      },
+            ],
+          ),
+        ),
+        const SizedBox(width: 10),
+        Container(
+          constraints: const BoxConstraints(maxWidth: 140),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: categoryColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: categoryColor.withValues(alpha: 0.3)),
+                ),
+                child: Text(
+                  post.categoryName,
+                  style: TextStyle(
+                      color: categoryColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (post.status != 'Active') ...[
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFf6c177).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    post.status,
+                    style: const TextStyle(
+                        color: Color(0xFFf6c177),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 10),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ]
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -288,232 +299,88 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       categoryColor = theme.colorScheme.secondary;
     }
 
-    return Scaffold(
+
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          Navigator.of(context).pop(_post);
+        }
+      },
+      child: Scaffold(
       appBar: AppBar(
-        title: const Text('Detalle de incidencia'),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.flag_outlined, color: theme.colorScheme.primary),
-            tooltip: 'Denunciar reporte',
-            onPressed: _showReportDialog,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Container(
+            decoration: BoxDecoration(
+              color: context.surfaceColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: context.borderColor),
+            ),
+            child: IconButton(
+              icon: Icon(Icons.arrow_back, color: context.textPrimaryColor),
+              onPressed: () => Navigator.of(context).pop(_post),
+            ),
           ),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Container(
+              decoration: BoxDecoration(
+                color: context.surfaceColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: context.borderColor),
+              ),
+              child: IconButton(
+                icon: Icon(Icons.flag_outlined, color: theme.colorScheme.primary),
+                tooltip: 'Denunciar reporte',
+                onPressed: _showReportDialog,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
         ],
       ),
       bottomNavigationBar: SafeArea(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: context.surfaceColor,
-            border: Border(top: BorderSide(color: context.borderColor, width: 2)),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _confirming || post.status != 'Active'
-                      ? null
-                      : _toggleConfirm,
-                  icon: Icon(_confirmed
-                      ? Icons.check_circle
-                      : Icons.check_circle_outline),
-                  label: Text(
-                    _confirmed
-                        ? 'Confirmado por ti ($_confirmationsCount)'
-                        : 'Confirmar incidencia ($_confirmationsCount)',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _confirmed
-                        ? RosePineDark.success
-                        : theme.colorScheme.secondary,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                ),
-              ),
-            ],
-          ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+          child: Row(children: [
+            Expanded(child: PostReactionBar(post: post)),
+            Icon(Icons.visibility_outlined,
+                size: 20, color: context.subtleColor),
+            const SizedBox(width: 6),
+            Text('${post.viewsCount}',
+                style: TextStyle(color: context.subtleColor)),
+          ]),
         ),
       ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Galería de Imágenes
-            if (post.images.isNotEmpty)
-              Stack(
-                alignment: Alignment.bottomCenter,
-                children: [
-                  SizedBox(
-                    height: 280,
-                    child: PageView.builder(
-                      itemCount: post.images.length,
-                      onPageChanged: (idx) =>
-                          setState(() => _currentImageIndex = idx),
-                      itemBuilder: (context, index) {
-                        return CachedNetworkImage(
-                          imageUrl: _formatImageUrl(post.images[index]),
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          placeholder: (context, url) => Container(
-                            color: context.overlayColor,
-                            child: const Center(
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2)),
-                          ),
-                          errorWidget: (context, url, error) => Container(
-                            color: context.overlayColor,
-                            child: Icon(Icons.broken_image,
-                                size: 48, color: context.mutedColor),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  if (post.images.length > 1)
-                    Positioned(
-                      bottom: 12,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(post.images.length, (i) {
-                          return Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 3),
-                            width: _currentImageIndex == i ? 18 : 7,
-                            height: 7,
-                            decoration: BoxDecoration(
-                              color: _currentImageIndex == i
-                                  ? Colors.white
-                                  : Colors.white60,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          );
-                        }),
-                      ),
-                    ),
-                ],
-              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              child: PostMediaCarousel(postId: post.id, images: post.images, videoUrl: post.videoUrl, detail: true),
+            ),
 
             Padding(
               padding: const EdgeInsets.all(20.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Badges: Categoría y Estado
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: categoryColor.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                              color: categoryColor.withValues(alpha: 0.3)),
-                        ),
-                        child: Text(
-                          post.categoryName,
-                          style: TextStyle(
-                              color: categoryColor,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: post.status == 'Active'
-                              ? RosePineDark.success.withValues(alpha: 0.15)
-                              : RosePineDark.gold.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          post.status == 'Active' ? 'Activa' : post.status,
-                          style: TextStyle(
-                            color: post.status == 'Active'
-                                ? RosePineDark.success
-                                : RosePineDark.gold,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        '${post.createdAt.day}/${post.createdAt.month}/${post.createdAt.year}',
-                        style:
-                            TextStyle(color: context.mutedColor, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Título
+                  _buildAuthorHeader(post, categoryColor),
+                  const SizedBox(height: 20),
                   Text(
                     post.title,
                     style: TextStyle(
-                      fontSize: 22,
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: context.textPrimaryColor,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Autor y Nivel
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 18,
-                        backgroundColor: theme.colorScheme.secondary,
-                        child: Text(
-                          post.authorUsername.isNotEmpty
-                              ? post.authorUsername[0].toUpperCase()
-                              : 'C',
-                          style: const TextStyle(
-                              color: Colors.white, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                          child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '@${post.authorUsername}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: context.textPrimaryColor,
-                            ),
-                          ),
-                          Text(
-                            post.authorReputation,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: theme.colorScheme.secondary,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      )),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text('${post.viewsCount} visualizaciones',
-                      style:
-                          TextStyle(color: context.mutedColor, fontSize: 12)),
-                  Divider(height: 32, color: context.borderColor),
-
-                  // Descripción Completa
-                  Text(
-                    'Detalles de la incidencia',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: context.textPrimaryColor,
+                      height: 1.3,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -522,7 +389,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     style: TextStyle(
                       fontSize: 15,
                       height: 1.5,
-                      color: context.subtleColor,
+                      color: context.textPrimaryColor,
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -584,61 +451,23 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                           ),
                         ],
                         const SizedBox(height: 6),
-                        Text(
-                          'Coordenadas: ${post.latitude.toStringAsFixed(4)}, ${post.longitude.toStringAsFixed(4)}',
-                          style: TextStyle(
-                              fontSize: 12, color: context.mutedColor),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Validación Ciudadana
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: RosePineDark.success.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                          color: RosePineDark.success.withValues(alpha: 0.25)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.verified,
-                            color: RosePineDark.success, size: 28),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '$_confirmationsCount confirmaciones ciudadanas',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: context.textPrimaryColor,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Los ciudadanos avalan la veracidad de este reporte.',
-                                style: TextStyle(
-                                    fontSize: 12, color: context.subtleColor),
-                              ),
-                            ],
+                        if (post.latitude != null && post.longitude != null)
+                          Text(
+                            'Coordenadas: ${post.latitude!.toStringAsFixed(4)}, ${post.longitude!.toStringAsFixed(4)}',
+                            style: TextStyle(
+                                fontSize: 12, color: context.mutedColor),
                           ),
-                        ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 40),
                 ],
               ),
             ),
           ],
         ),
       ),
-    );
+    ));
   }
 }
+
+

@@ -14,9 +14,6 @@ dependencies:
   dio: ^5.7.0
   flutter_secure_storage: ^9.2.2
   
-  # State Management
-  flutter_bloc: ^8.1.6
-  
   # Maps & Location
   google_maps_flutter: ^2.10.0
   geolocator: ^13.0.1
@@ -25,12 +22,15 @@ dependencies:
   # Media & UI
   image_picker: ^1.1.2
   cached_network_image: ^3.4.1
+  flutter_svg: ^2.0.17
   intl: ^0.19.0
-  cupertino_icons: ^1.0.8
   firebase_core: ^4.15.0
   firebase_messaging: ^16.7.0
   google_sign_in: ^7.2.0
   sign_in_with_apple: ^8.2.0
+  video_player: ^2.14.0
+  visibility_detector: ^0.4.0+2
+  video_compress: ^3.1.4
 
 dev_dependencies:
   flutter_test:
@@ -41,3 +41,8 @@ flutter:
   uses-material-design: true
   assets:
     - assets/branding/google_g.png
+    - assets/branding/rdreporta_logo_dark.png
+    - assets/branding/rdreporta_logo_light.png
+    - assets/branding/rdreporta_dark_flutter.svg
+    - assets/branding/rdreporta_light_flutter.svg
+    - assets/emojis/

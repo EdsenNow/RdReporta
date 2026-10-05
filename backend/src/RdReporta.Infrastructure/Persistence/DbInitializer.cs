@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using RdReporta.Application.Common.Interfaces;
 using RdReporta.Domain.Entities;
 using RdReporta.Domain.Enums;
@@ -11,12 +12,73 @@ public static class DbInitializer
     {
         if (!context.Database.IsNpgsql()) return;
 
+        await context.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS "PostViews" (
+                "PostId" uuid NOT NULL REFERENCES "Posts"("Id") ON DELETE CASCADE,
+                "UserId" uuid NOT NULL REFERENCES "Users"("Id") ON DELETE CASCADE,
+                "ViewedAt" timestamp with time zone NOT NULL,
+                CONSTRAINT "PK_PostViews" PRIMARY KEY ("PostId", "UserId"));
+            CREATE INDEX IF NOT EXISTS "IX_PostViews_UserId" ON "PostViews" ("UserId");
+            """);
+
         await context.Database.ExecuteSqlRawAsync(
             "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"DisplayName\" character varying(80) NOT NULL DEFAULT ''; " +
             "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"UsernameChangedAt\" timestamp with time zone NULL; " +
+            "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"PasswordResetCode\" character varying(10) NULL; " +
+            "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"PasswordResetExpiresAt\" timestamp with time zone NULL; " +
             "ALTER TABLE \"Posts\" ADD COLUMN IF NOT EXISTS \"Neighborhood\" character varying(100) NULL; " +
+            "ALTER TABLE \"Posts\" ADD COLUMN IF NOT EXISTS \"VideoUrl\" character varying(1000) NULL; " +
+            "ALTER TABLE \"Posts\" ALTER COLUMN \"Latitude\" DROP NOT NULL; " +
+            "ALTER TABLE \"Posts\" ALTER COLUMN \"Longitude\" DROP NOT NULL; " +
+            "ALTER TABLE \"Posts\" ALTER COLUMN \"LocationCoordinates\" DROP NOT NULL; " +
             "UPDATE \"Users\" SET \"DisplayName\" = \"Username\" WHERE \"DisplayName\" = '';"
         );
+        await context.Database.ExecuteSqlRawAsync("""
+            DROP TABLE IF EXISTS "PostConfirmations";
+            ALTER TABLE "Posts" DROP COLUMN IF EXISTS "ConfirmationsCount";
+            UPDATE "Users"
+            SET "RefreshToken" = NULL, "RefreshTokenExpiryTime" = NULL
+            WHERE "RefreshToken" IS NOT NULL
+                AND (length("RefreshToken") <> 64 OR "RefreshToken" ~ '[^0-9A-F]');
+            UPDATE "Users" SET "RefreshTokenExpiryTime" = NULL
+            WHERE "RefreshToken" IS NOT NULL AND "RefreshTokenExpiryTime" > CURRENT_TIMESTAMP;
+            """);
+        await context.Database.ExecuteSqlRawAsync("""
+            WITH ranked AS (
+              SELECT "Id", row_number() OVER (
+                PARTITION BY "PostId", "UserId" ORDER BY "CreatedAt" DESC, "Id") AS position
+              FROM "PostReactions")
+            DELETE FROM "PostReactions" AS reactions
+            USING ranked
+            WHERE reactions."Id" = ranked."Id" AND ranked.position > 1;
+            UPDATE "Posts" AS posts
+            SET "ReactionsCount" = (
+              SELECT count(*) FROM "PostReactions" AS reactions WHERE reactions."PostId" = posts."Id");
+            DROP INDEX IF EXISTS "IX_PostReactions_PostId_UserId_ReactionType";
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_PostReactions_PostId_UserId"
+              ON "PostReactions" ("PostId", "UserId");
+            """);
+        await context.Database.ExecuteSqlRawAsync("""
+            DROP INDEX IF EXISTS "IX_Users_Username";
+            WITH ranked AS (
+              SELECT "Id", lower("Username") AS canonical,
+                     row_number() OVER (PARTITION BY lower("Username") ORDER BY "CreatedAt", "Id") AS position
+              FROM "Users"
+            )
+            UPDATE "Users" AS users
+            SET "Username" = CASE
+              WHEN ranked.position = 1 THEN ranked.canonical
+              ELSE left(ranked.canonical, 17) || '_' || replace(ranked."Id"::text, '-', '')
+            END
+            FROM ranked
+            WHERE users."Id" = ranked."Id"
+              AND users."Username" <> CASE
+                WHEN ranked.position = 1 THEN ranked.canonical
+                ELSE left(ranked.canonical, 17) || '_' || replace(ranked."Id"::text, '-', '')
+              END;
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_Users_Username_Lower"
+              ON "Users" (lower("Username"));
+            """);
         await context.Database.ExecuteSqlRawAsync("""
             CREATE TABLE IF NOT EXISTS "UserFollows" (
               "FollowerId" uuid NOT NULL REFERENCES "Users"("Id") ON DELETE CASCADE,
@@ -36,9 +98,25 @@ public static class DbInitializer
               "UpdatedAt" timestamp with time zone NOT NULL, CONSTRAINT "PK_DeviceRegistrations" PRIMARY KEY ("Id"));
             CREATE UNIQUE INDEX IF NOT EXISTS "IX_DeviceRegistrations_Token" ON "DeviceRegistrations" ("Token");
             """);
+        await context.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS "PushDeliveries" (
+              "Id" uuid PRIMARY KEY,
+              "NotificationId" uuid NOT NULL REFERENCES "UserNotifications"("Id") ON DELETE CASCADE,
+              "DeviceRegistrationId" uuid NOT NULL REFERENCES "DeviceRegistrations"("Id") ON DELETE CASCADE,
+              "Attempts" integer NOT NULL DEFAULT 0,
+              "NextAttemptAt" timestamp with time zone NOT NULL,
+              "CompletedAt" timestamp with time zone NULL);
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_PushDeliveries_NotificationId_DeviceRegistrationId"
+              ON "PushDeliveries" ("NotificationId", "DeviceRegistrationId");
+            CREATE INDEX IF NOT EXISTS "IX_PushDeliveries_NextAttemptAt"
+              ON "PushDeliveries" ("NextAttemptAt") WHERE "CompletedAt" IS NULL;
+            """);
     }
 
-    public static async Task SeedAsync(ApplicationDbContext context, IPasswordHasher passwordHasher)
+    public static async Task SeedAsync(
+        ApplicationDbContext context,
+        IPasswordHasher passwordHasher,
+        IConfiguration configuration)
     {
         // 1. Seed Roles
         if (!await context.Roles.AnyAsync())
@@ -147,7 +225,11 @@ public static class DbInitializer
         }
 
         // 3. Seed Default Admin User
-        if (!await context.Users.AnyAsync(u => u.Email == "admin@rdreporta.do"))
+        var adminEmail = configuration["SeedAdmin:Email"];
+        var adminPassword = configuration["SeedAdmin:Password"];
+        if (!string.IsNullOrWhiteSpace(adminEmail)
+            && !string.IsNullOrWhiteSpace(adminPassword)
+            && !await context.Users.AnyAsync(u => u.Email == adminEmail))
         {
             var adminRole = await context.Roles.FirstAsync(r => r.Name == "Administrador");
             var adminUser = new User
@@ -155,8 +237,8 @@ public static class DbInitializer
                 Id = Guid.NewGuid(),
                 Username = "admin_rdreporta",
                 DisplayName = "Administrador RDReporta",
-                Email = "admin@rdreporta.do",
-                PasswordHash = passwordHasher.Hash("Admin123!*"),
+                Email = adminEmail.Trim().ToLowerInvariant(),
+                PasswordHash = passwordHasher.Hash(adminPassword),
                 Province = "Distrito Nacional",
                 Municipality = "Santo Domingo",
                 ReputationScore = 1000,

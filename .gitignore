@@ -18,6 +18,9 @@ $RECYCLE.BIN/
 *.env.production.local
 appsettings.*.local.json
 secrets.json
+*.jks
+*.keystore
+key.properties
 
 # --- Visual Studio & VS Code ---
 .vs/
@@ -45,6 +48,7 @@ publish/
 project.lock.json
 project.fragment.lock.json
 artifacts/
+/maintenance/archive/
 TestResults/
 
 # --- Node.js / React Admin ---
@@ -85,6 +89,19 @@ mobile/android/local.properties
 mobile/android/**/GeneratedPluginRegistrant.java
 
 # --- Docker & Database ---
+.artifacts/
 *.sql.backup
 pgdata/
 data/
+.data-protection-keys/
+
+# Partial video uploads (private temporary files)
+.video-uploads/
+
+# Uploaded user media is runtime data, never source code.
+backend/src/RdReporta.Api/wwwroot/uploads/
+
+# --- Tooling & AI Caches ---
+.codegraph/
+.codex/
+.gemini/

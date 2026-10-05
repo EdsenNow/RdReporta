@@ -6,7 +6,9 @@ namespace RdReporta.Application.DTOs;
 public record RegisterRequest(
     [Required, MinLength(3), MaxLength(50)] string Username,
     [Required, EmailAddress] string Email,
-    [Required, MinLength(6), MaxLength(72)] string Password,
+    [Required, MinLength(8), MaxLength(72),
+     RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$",
+         ErrorMessage = "La contraseña debe incluir mayúscula, minúscula y número.")] string Password,
     [MaxLength(100)] string? Province,
     [MaxLength(100)] string? Municipality
 );
@@ -36,14 +38,12 @@ public record UserProfileDto(
     Guid Id,
     string Username,
     string DisplayName,
-    string Email,
     string? AvatarUrl,
     string? Province,
     string? Municipality,
     int ReputationScore,
     ReputationLevel ReputationLevel,
     int TotalPosts,
-    int TotalConfirmationsReceived,
     DateTime MemberSince,
     DateTime? UsernameCanChangeAt,
     bool IsVerified,

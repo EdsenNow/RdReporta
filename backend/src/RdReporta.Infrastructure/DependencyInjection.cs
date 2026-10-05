@@ -13,8 +13,12 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("DefaultConnection") 
-            ?? "Host=localhost;Port=5432;Database=rdreporta_db;Username=postgres;Password=postgres_dev_password";
+        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException(
+                "ConnectionStrings:DefaultConnection debe configurarse fuera del repositorio.");
+        }
 
         services.AddDbContext<ApplicationDbContext>(options =>
         {
@@ -30,7 +34,23 @@ public static class DependencyInjection
         // Security & Services
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
-        services.AddScoped<IStorageService, LocalStorageService>();
+        services.AddHttpClient<IAppleAuthService, AppleAuthService>();
+
+        services.Configure<S3StorageOptions>(configuration.GetSection(S3StorageOptions.SectionName));
+        var storageProvider = configuration["Storage:Provider"];
+        if (string.Equals(storageProvider, "S3", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(storageProvider, "R2", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(storageProvider, "Cloud", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(storageProvider, "Cloudflare", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddSingleton<IStorageService, S3StorageService>();
+        }
+        else
+        {
+            services.AddScoped<IStorageService, LocalStorageService>();
+        }
+
+        services.AddHostedService<PushNotificationWorker>();
 
         // Application Services
         services.AddScoped<IAuthService, AuthService>();

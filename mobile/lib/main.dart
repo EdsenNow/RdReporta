@@ -3,8 +3,11 @@ import 'core/theme/app_theme.dart';
 import 'features/splash/splash_screen.dart';
 import 'core/firebase_service.dart';
 
+import 'package:visibility_detector/visibility_detector.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  VisibilityDetectorController.instance.updateInterval = const Duration(milliseconds: 150);
   await AppTheme.loadSavedTheme();
   await FirebaseService.initialize();
   runApp(const RdReportaApp());

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 import 'package:rdreporta/core/networking/api_client.dart';
 import 'package:rdreporta/core/theme/app_theme.dart';
+import 'package:rdreporta/features/auth/login_screen.dart';
 import 'package:rdreporta/features/feed/feed_screen.dart';
 import 'package:rdreporta/features/feed/post_detail_screen.dart';
 import 'package:rdreporta/features/home/home_screen.dart';
@@ -13,11 +15,10 @@ import 'api_client_test.dart' show FakeAdapter, jsonResponse;
 
 void main() {
   late Map<String, dynamic> post;
-  var confirmations = 0;
   setUp(() {
+    VisibilityDetectorController.instance.updateInterval = Duration.zero;
     FlutterSecureStorage.setMockInitialValues(
         {'jwt_token': 'test-token', 'refresh_token': 'test-refresh'});
-    confirmations = 0;
     post = {
       'id': 'post-1',
       'userId': 'author-1',
@@ -36,10 +37,8 @@ void main() {
       'status': 'Active',
       'viewsCount': 12345,
       'reactionsCount': 1234,
-      'confirmationsCount': 1234,
       'images': <String>[],
       'createdAt': '2026-09-28T12:00:00Z',
-      'userHasConfirmed': false,
     };
     ApiClient.useForTesting(ApiClient.forTesting(FakeAdapter((options) {
       final Object data;
@@ -58,7 +57,7 @@ void main() {
         data = {
           'activePosts': 12345,
           'resolvedPosts': 9876,
-          'totalConfirmations': 123456
+          'totalViews': 123456
         };
       } else if (options.path == '/posts/map') {
         data = [post];
@@ -72,15 +71,12 @@ void main() {
           'reputationScore': 12345,
           'reputationLevel': 'ColaboradorConfiable',
           'totalPosts': 1234,
-          'totalConfirmationsReceived': 12345,
           'memberSince': '2025-01-01T00:00:00Z'
         };
       } else if (options.path == '/posts/post-1') {
         data = post;
-      } else if (options.path.endsWith('/confirm')) {
-        confirmations++;
-        post['userHasConfirmed'] = !(post['userHasConfirmed'] as bool);
-        data = post['userHasConfirmed'];
+      } else if (options.path.endsWith('/views')) {
+        data = 12346;
       } else {
         data = {
           'items': [post],
@@ -121,27 +117,22 @@ void main() {
     });
   }
 
-  testWidgets('confirmation becomes available again after a successful request',
+  testWidgets('detail screen displays incident information cleanly',
       (tester) async {
     await render(tester, const PostDetailScreen(postId: 'post-1'), width: 800);
-    await tester.tap(
-        find.widgetWithText(ElevatedButton, 'Confirmar Incidencia (1234)'));
-    await tester.pumpAndSettle();
-    expect(confirmations, 1);
-    await tester
-        .tap(find.widgetWithText(ElevatedButton, 'Confirmado por ti (1235)'));
-    await tester.pumpAndSettle();
-    expect(confirmations, 2);
+    expect(find.text('Crear nuevo reporte'), findsNothing);
+    expect(find.text('Luminaria averiada frente al centro comunitario'),
+        findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('guest publishing opens a sign-in invitation', (tester) async {
+  testWidgets('unauthenticated publishing redirects to login', (tester) async {
     FlutterSecureStorage.setMockInitialValues({});
     await render(tester, const HomeScreen(), width: 800);
     await tester.tap(find.byIcon(Icons.add_rounded));
     await tester.pumpAndSettle();
-    expect(find.text('Participa en tu comunidad'), findsOneWidget);
+    expect(find.byType(LoginScreen), findsOneWidget);
     expect(find.byType(CreatePostScreen), findsNothing);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());

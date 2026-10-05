@@ -23,7 +23,7 @@ public class ManagementController(IApplicationDbContext db) : ControllerBase
             totalPosts = await db.Posts.CountAsync(ct),
             activePosts = await db.Posts.CountAsync(p => p.Status == PostStatus.Active, ct),
             resolvedPosts = await db.Posts.CountAsync(p => p.Status == PostStatus.Resolved, ct),
-            totalConfirmations = await db.PostConfirmations.CountAsync(ct),
+            totalViews = await db.Posts.SumAsync(p => p.ViewsCount, ct),
             totalReactions = await db.PostReactions.CountAsync(ct),
             pendingReports = await db.ModerationReports.CountAsync(r => r.Status == ModerationStatus.Pending, ct)
         }
@@ -45,7 +45,7 @@ public class ManagementController(IApplicationDbContext db) : ControllerBase
             .Select(p => new { p.Id, p.UserId, AuthorUsername = p.User.Username, p.CategoryId,
                 CategoryName = p.Category.Name, CategoryColor = p.Category.ColorHex, p.Title,
                 p.Description, p.Latitude, p.Longitude, p.Province, p.Municipality, p.Status,
-                p.ViewsCount, p.ReactionsCount, p.ConfirmationsCount, p.CreatedAt,
+                p.ViewsCount, p.ReactionsCount, p.CreatedAt,
                 Images = p.Images.OrderBy(i => i.OrderIndex).Select(i => i.ImageUrl).ToList() })
             .ToListAsync(ct);
         return Ok(new { success = true, data = new { items, totalCount, pageNumber = page, pageSize } });
@@ -117,7 +117,7 @@ public class ManagementController(IApplicationDbContext db) : ControllerBase
     public async Task<IActionResult> Post(Guid id, CancellationToken ct)
     {
         var post = await db.Posts.AsNoTracking().Include(p => p.User).Include(p => p.Category)
-            .Include(p => p.Images).Include(p => p.Reactions).Include(p => p.Confirmations)
+            .Include(p => p.Images).Include(p => p.Reactions)
             .FirstOrDefaultAsync(p => p.Id == id, ct);
         return post == null ? NotFound(ApiResponse<PostDto>.Fail("Publicación no encontrada."))
             : Ok(ApiResponse<PostDto>.Ok(RdReporta.Application.Services.PostService.MapToDto(post, post.User, post.Category, null)));

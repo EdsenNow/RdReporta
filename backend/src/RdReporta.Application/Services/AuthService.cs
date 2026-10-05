@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using System.Security.Cryptography;
+using System.Text;
 using RdReporta.Application.Common.Interfaces;
 using RdReporta.Application.Common.Models;
 using RdReporta.Application.DTOs;
@@ -13,6 +15,7 @@ public interface IAuthService
     Task<ApiResponse<AuthResponse>> LoginAsync(LoginRequest request, CancellationToken ct = default);
     Task<ApiResponse<AuthResponse>> RefreshTokenAsync(RefreshTokenRequest request, CancellationToken ct = default);
     Task<ApiResponse<AuthResponse>> ExternalLoginAsync(string email, string displayName, string? avatarUrl, CancellationToken ct = default);
+    Task<ApiResponse<AuthResponse>> ExternalLoginAsync(string email, string displayName, string? avatarUrl, string providerName, CancellationToken ct = default);
 }
 
 public class AuthService : IAuthService
@@ -57,7 +60,7 @@ public class AuthService : IAuthService
         var user = new User
         {
             Id = Guid.NewGuid(),
-            Username = request.Username.Trim(),
+            Username = normalizedUsername,
             DisplayName = request.Username.Trim(),
             Email = normalizedEmail,
             PasswordHash = _passwordHasher.Hash(request.Password),
@@ -76,8 +79,8 @@ public class AuthService : IAuthService
         var accessToken = _jwtTokenService.GenerateAccessToken(user, roles);
         var refreshToken = _jwtTokenService.GenerateRefreshToken();
 
-        user.RefreshToken = refreshToken;
-        user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(14);
+        user.RefreshToken = HashRefreshToken(refreshToken);
+        user.RefreshTokenExpiryTime = null;
 
         _context.Users.Add(user);
         await _context.SaveChangesAsync(ct);
@@ -120,8 +123,8 @@ public class AuthService : IAuthService
         var accessToken = _jwtTokenService.GenerateAccessToken(user, roles);
         var refreshToken = _jwtTokenService.GenerateRefreshToken();
 
-        user.RefreshToken = refreshToken;
-        user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(14);
+        user.RefreshToken = HashRefreshToken(refreshToken);
+        user.RefreshTokenExpiryTime = null;
         user.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(ct);
@@ -140,8 +143,12 @@ public class AuthService : IAuthService
         return ApiResponse<AuthResponse>.Ok(response, "Inicio de sesión exitoso.");
     }
 
-    public async Task<ApiResponse<AuthResponse>> ExternalLoginAsync(
+    public Task<ApiResponse<AuthResponse>> ExternalLoginAsync(
         string email, string displayName, string? avatarUrl, CancellationToken ct = default)
+        => ExternalLoginAsync(email, displayName, avatarUrl, "Google", ct);
+
+    public async Task<ApiResponse<AuthResponse>> ExternalLoginAsync(
+        string email, string displayName, string? avatarUrl, string providerName, CancellationToken ct = default)
     {
         var normalizedEmail = email.Trim().ToLowerInvariant();
         var user = await _context.Users.Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
@@ -175,8 +182,8 @@ public class AuthService : IAuthService
         var roles = user.UserRoles.Select(x => x.Role.Name).ToList();
         if (roles.Count == 0) roles.Add("Ciudadano");
         var refreshToken = _jwtTokenService.GenerateRefreshToken();
-        user.RefreshToken = refreshToken;
-        user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(14);
+        user.RefreshToken = HashRefreshToken(refreshToken);
+        user.RefreshTokenExpiryTime = null;
         user.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync(ct);
 
@@ -184,7 +191,7 @@ public class AuthService : IAuthService
             user.Id, user.Username, user.Email,
             _jwtTokenService.GenerateAccessToken(user, roles), refreshToken,
             DateTime.UtcNow.AddHours(2), roles, user.ReputationLevel),
-            "Inicio de sesión con Google exitoso.");
+            $"Inicio de sesión con {providerName} exitoso.");
     }
 
     public async Task<ApiResponse<AuthResponse>> RefreshTokenAsync(RefreshTokenRequest request, CancellationToken ct = default)
@@ -206,7 +213,9 @@ public class AuthService : IAuthService
                 .ThenInclude(ur => ur.Role)
             .FirstOrDefaultAsync(u => u.Id == userId, ct);
 
-        if (user == null || !user.IsActive || user.RefreshToken != request.RefreshToken || user.RefreshTokenExpiryTime == null || user.RefreshTokenExpiryTime <= DateTime.UtcNow)
+        if (user == null || !user.IsActive || user.RefreshToken == null
+            || !RefreshTokenMatches(user.RefreshToken, request.RefreshToken)
+            || (user.RefreshTokenExpiryTime != null && user.RefreshTokenExpiryTime <= DateTime.UtcNow))
         {
             return ApiResponse<AuthResponse>.Fail("Refresh token inválido o expirado.");
         }
@@ -217,9 +226,19 @@ public class AuthService : IAuthService
         var newAccessToken = _jwtTokenService.GenerateAccessToken(user, roles);
         var newRefreshToken = _jwtTokenService.GenerateRefreshToken();
 
-        user.RefreshToken = newRefreshToken;
-        user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(14);
-        await _context.SaveChangesAsync(ct);
+        var previousHash = user.RefreshToken;
+        var nextHash = HashRefreshToken(newRefreshToken);
+        var now = DateTime.UtcNow;
+        var updated = await _context.Users
+            .Where(candidate => candidate.Id == userId && candidate.IsActive
+                && candidate.RefreshToken == previousHash
+                && (candidate.RefreshTokenExpiryTime == null || candidate.RefreshTokenExpiryTime > now))
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(candidate => candidate.RefreshToken, nextHash)
+                .SetProperty(candidate => candidate.RefreshTokenExpiryTime, (DateTime?)null)
+                .SetProperty(candidate => candidate.UpdatedAt, now), ct);
+        if (updated != 1)
+            return ApiResponse<AuthResponse>.Fail("Refresh token inválido o ya utilizado.");
 
         var response = new AuthResponse(
             user.Id,
@@ -233,5 +252,19 @@ public class AuthService : IAuthService
         );
 
         return ApiResponse<AuthResponse>.Ok(response, "Sesión renovada exitosamente.");
+    }
+
+    private static string HashRefreshToken(string token)
+    {
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
+    }
+
+    private static bool RefreshTokenMatches(string storedHash, string suppliedToken)
+    {
+        var candidateHash = HashRefreshToken(suppliedToken);
+        return storedHash.Length == candidateHash.Length
+            && CryptographicOperations.FixedTimeEquals(
+                Encoding.ASCII.GetBytes(storedHash),
+                Encoding.ASCII.GetBytes(candidateHash));
     }
 }

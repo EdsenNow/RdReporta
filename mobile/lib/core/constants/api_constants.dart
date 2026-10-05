@@ -8,7 +8,7 @@ class ApiConstants {
       return configured.replaceFirst(RegExp(r'/$'), '');
     }
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:5000/api';
+      return 'http://127.0.0.1:5000/api';
     } else {
       return 'http://localhost:5000/api';
     }
@@ -31,5 +31,6 @@ class ApiConstants {
   static const String postsMap = '/posts/map';
   static const String createPost = '/posts';
   static const String uploadImage = '/uploads/image';
+  static const String uploadVideo = '/uploads/video';
   static const String moderationReport = '/moderation/report';
 }

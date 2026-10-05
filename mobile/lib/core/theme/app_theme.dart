@@ -5,7 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 /// Inspirada en la estética minimalista y serena de FinanzApp.
 class RosePineDark {
   static const Color base = Color(0xFF191724);
-  static const Color surface = Color(0xFF1F1D2E);
+  static const Color surface = Color(0xFF1D1D2F);
   static const Color overlay = Color(0xFF26233A);
   static const Color muted = Color(0xFF6E6A86);
   static const Color subtle = Color(0xFF908CAA);
@@ -92,7 +92,6 @@ class AppTheme {
   static const Color textPrimary = Color(0xFF1F1D2E); // Dawn text
   static const Color textSecondary = Color(0xFF433F5A); // Dawn subtle
   static const Color borderSubtle = Color(0xFFF2E9E1);
-  static const Color confirmationGreen = Color(0xFF168058); // Success
 
   // --- TEMA CLARO (Rosé Pine Dawn - Alto Contraste) ---
   static ThemeData get lightTheme {

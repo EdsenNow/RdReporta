@@ -18,12 +18,13 @@ public class User : BaseEntity<Guid>
     public bool IsVerified { get; set; } = false;
     public string? RefreshToken { get; set; }
     public DateTime? RefreshTokenExpiryTime { get; set; }
+    public string? PasswordResetCode { get; set; }
+    public DateTime? PasswordResetExpiresAt { get; set; }
 
     // Navigation collections
     public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
     public ICollection<Post> Posts { get; set; } = new List<Post>();
     public ICollection<PostReaction> Reactions { get; set; } = new List<PostReaction>();
-    public ICollection<PostConfirmation> Confirmations { get; set; } = new List<PostConfirmation>();
     public ICollection<ModerationReport> ReportsSubmitted { get; set; } = new List<ModerationReport>();
 }
 

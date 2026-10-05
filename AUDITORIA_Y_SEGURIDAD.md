@@ -1,227 +1,284 @@
-# Guía Maestra de Buenas Prácticas, Seguridad Móvil y Checklist de Validaciones
+# Auditoría y seguridad de RDReporta
 
-**Proyecto:** RDReporta  
-**Fecha de actualización:** 28 de septiembre de 2026  
-**Alcance:** Cliente Móvil (Flutter / Android / iOS), API Backend (.NET 10) y Panel Web Administrativo (React / Vite).  
-**Estándares de referencia:** OWASP Mobile Top 10 (2024), OWASP MASVS (Mobile Application Security Verification Standard), WCAG 2.1 AA, Google Play Data Safety, Apple Privacy Nutrition Labels.
+**Actualización:** 5 de octubre de 2026
+**Alcance:** Flutter/Android/iOS, API .NET 10, PostgreSQL/PostGIS, panel React, cargas multimedia y cadena de suministro.
+**Objetivo:** convertir requisitos en controles verificables, conservar evidencia histórica y priorizar los riesgos pendientes.
 
----
+Esta guía documenta los controles de seguridad y los resultados verificados en el código actual. **No constituye una certificación formal de cumplimiento por terceros ni una prueba de penetración externa.**
 
-## 1. Buenas Prácticas de Código y Arquitectura en Aplicaciones Móviles
+## 1. Estado ejecutivo y evidencia
 
-### 1.1 Arquitectura Limpia y Separación de Responsabilidades (Clean Architecture)
-- **Capa de Dominio (Domain):** Entidades inmutables, reglas de negocio puras, sin dependencias de frameworks ni paquetes de red o persistencia.
-- **Capa de Datos (Data):** Fuentes remotas (`ApiClient` con Dio) y locales (`FlutterSecureStorage`, caché local). Repositorios que abstraen el origen de los datos.
-- **Capa de Presentación (Presentation / UI):** Widgets reactivos, desacoplados mediante gestión de estado (`ValueNotifier`, `BLoC`), manteniendo la lógica de negocio fuera de los métodos `build()`.
-- **Estructura Modular (Feature-First):** Cada funcionalidad (`auth`, `feed`, `map`, `posts`, `profile`) encapsula sus propias vistas, controladores y componentes.
+### 1.1 Evidencia histórica registrada: 30 de septiembre
 
-### 1.2 Principios S.O.L.I.D. y Código Defensivo
-- **Single Responsibility (SRP):** Cada clase tiene una única razón de cambio (ej. `LocationService` solo gestiona GPS; `ApiClient` solo coordina peticiones HTTP).
-- **Open/Closed (OCP):** Comportamientos extensibles mediante abstracciones (ej. `HttpClientAdapter` intercambiable para pruebas unitarias sin tocar la red real).
-- **Liskov Substitution (LSP):** Clientes de prueba (`FakeAdapter`) sustituyen al cliente HTTP real sin romper expectativas del contrato.
-- **Interface Segregation (ISP):** Clases consumidoras dependen solo de los métodos que necesitan.
-- **Dependency Inversion (DIP):** Las pantallas y controladores dependen de abstracciones y singletons controlados, permitiendo inyección de dependencias para tests.
+El documento anterior registró los siguientes resultados:
 
----
+| Área | Resultado registrado | Límite |
+| --- | --- | --- |
+| Backend | Compilación sin errores ni advertencias. | No se volvió a compilar en aquella fecha. |
+| Dependencias | NuGet y npm sin vulnerabilidades conocidas informadas en aquella consulta. | Depende de fecha, fuentes, cobertura y éxito del escaneo. |
+| Video de 52.2 MiB | Integridad, reintentos, conflictos y propietario comprobados en servidor. | No certifica estabilidad ni velocidad desde un teléfono. |
+| Imágenes | JPEG/PNG/WebP reales, orientación y eliminación de metadatos; rechazo de archivos dañados. | No certifica antivirus ni todas las entradas posibles. |
+| Flutter | 26 pruebas aprobadas y análisis sin hallazgos. | Número histórico; se retiró después una prueba de un componente desconectado. |
+| Panel | Linter y compilación aprobados entonces. | La compilación posterior falló; resuelto el 5 de octubre de 2026. |
+| API y PostgreSQL | Registro, permisos, propiedad, rotación, reutilización y logout comprobados. | Casos concretos del script, no todas las rutas ni todos los roles. |
+| Android | APK debug compilado y comprobaciones de configuración. | No equivale a analizar el binario release firmado. |
+| Script de auditoría | 12/12 controles informados como aprobados. | Incluye HTTP local; no cubre todos los controles de este documento. |
 
-## 2. Brechas de Seguridad en Aplicaciones Móviles (OWASP Mobile Top 10 - 2024)
+### 1.2 Evidencia del 1 de octubre
 
-| Código | Riesgo OWASP Mobile (2024) | Impacto / Vector de Ataque | Mitigación Implementada y Recomendada |
-|---|---|---|---|
-| **M1** | **Improper Credential Usage** | Credenciales de API o tokens expuestos en repositorios de código o en strings compilados. | Cero API keys o contraseñas en código. Inyección en compilación vía `--dart-define` o variables de entorno del sistema. Tokens JWT almacenados exclusivamente en hardware-backed storage. |
-| **M2** | **Inadequate Supply Chain Security** | Paquetes de terceros o plugins con vulnerabilidades críticas conocidas (CVEs). | Auditoría automatizada con `dotnet list package --vulnerable` en backend y verificación periódica de dependencias en `pubspec.yaml` mediante análisis estático y dependabot. |
-| **M3** | **Insecure Authentication / Authorization** | Sesiones que no expiran, ausencia de invalidación de refresh tokens, falta de control de roles (IDOR). | Access Tokens JWT de corta duración + Refresh Tokens rotativos almacenados de forma segura. Autorización estricta por roles (`Admin`, `Moderator`, `Citizen`) validada en servidor. |
-| **M4** | **Insufficient Input/Output Validation** | Inyecciones SQL, NoSQL, Cross-Site Scripting (XSS) en WebViews, manipulación de payloads. | Sanitización y validación estricta de tipos tanto en cliente (Form Validators) como en servidor (Entity Framework Core con queries parametrizadas y DataAnnotations). |
-| **M5** | **Insecure Communication** | Intercepción de tráfico de red en tránsito (Man-In-The-Middle, redes Wi-Fi públicas no cifradas). | Transporte HTTPS obligatorio con TLS 1.3/1.2. Deshabilitación de `usesCleartextTraffic` en Android y `NSAllowsArbitraryLoads` en iOS. Recomendación de SSL/Certificate Pinning. |
-| **M6** | **Inadequate Privacy Controls** | Fuga de PII (Personally Identifiable Information), metadatos de ubicación residencial o EXIF en imágenes. | Filtrado de metadatos GPS al subir imágenes; no vinculación de nombres reales con reportes anónimos. Cumplimiento estricto con las políticas de privacidad de Google Play y App Store. |
-| **M7** | **Insufficient Binary Protections** | Ingeniería inversa, desensamblado con herramientas como Frida, Ghidra o Jadx para extraer secretos. | Activación de ProGuard / R8 en Android. Ofuscación de símbolos en Flutter con `--obfuscate --split-debug-info`. Eliminación de logs verbosos en builds de release. |
-| **M8** | **Security Misconfiguration** | Permisos excesivos en el manifiesto, `android:exported=true` en componentes no protegidos, modo debug en producción. | Revisión de `AndroidManifest.xml` e `Info.plist`: únicamente permisos esenciales. Servicios y Activities internos con `android:exported="false"`. `debugShowCheckedModeBanner: false`. |
-| **M9** | **Insecure Data Storage** | Almacenamiento de tokens o datos sensibles en `SharedPreferences` o `UserDefaults` en texto plano. | Uso mandatorio de `flutter_secure_storage`: Keystore con cifrado AES-256-GCM / EncryptedSharedPreferences en Android y Keychain con `kSecAttrAccessibleAfterFirstUnlock` en iOS. |
-| **M10** | **Insufficient Cryptography** | Uso de algoritmos obsoletos (MD5, SHA1, DES) o generación de números pseudoaleatorios predecibles. | Algoritmos robustos estándar (HMAC-SHA256 para firmas de tokens, PBKDF2/Argon2 para hashes de contraseñas en backend, AES-256-GCM para almacenamiento). |
+- Limpieza de dependencias y archivos no utilizados; `flutter analyze --no-pub` completado sin errores.
+- Se identificó fallo de compilación en el panel React (`admin/`) por discrepancias de tipos en `ThemeSelector.tsx`, tipos de Vite y `FormEvent`.
 
----
+### 1.3 Evidencia de verificación e implementaciones: 5 de octubre de 2026
 
-## 3. Matriz Exhaustiva de Validaciones (Las 20 Áreas del Checklist)
+- **Compilación del Panel Web Administrativo (admin/):** Resuelto. Se agregaron los tipos e importaciones correctos y la propiedad `compact?: boolean` en `ThemeSelector.tsx`. `npm run build` (`tsc -b && vite build`) ejecuta y finaliza con **0 errores**, transformando 1896 módulos y generando los artefactos en `dist/` en 1.01 segundos.
+- **Iniciar sesión con Apple (Sign in with Apple):** Implementado endpoint `POST /api/auth/apple` y servicio `AppleAuthService`. Valida la firma criptográfica RSA del identity token contra el endpoint JWKS oficial de Apple (`https://appleid.apple.com/auth/keys`), con almacenamiento en caché (24 horas) y recarga ante claves no reconocidas; valida emisor (`https://appleid.apple.com`), audiencia (`Authentication:AppleBundleId`), expiración y verificación del correo; extrae `sub` y correo determinista privado, e integra con `AuthService.ExternalLoginAsync`. En Flutter (`api_client.dart` y `login_screen.dart`), se transmite `fullName` en la primera autorización.
+- **Almacenamiento multimedia en la nube:** Implementado `S3StorageService` con soporte configurable para Cloudflare R2, AWS S3, Google Cloud Storage (interoperabilidad S3) y dominios CDN públicos (`Storage:Provider=S3/R2/Cloud`). `LocalStorageService` permanece disponible para desarrollo local. El controlador de video por bloques (`VideoChunksController`) traslada el video ensamblado a la nube si está configurada, y `UploadReference.cs` valida propiedad y seguridad de archivos tanto en rutas locales `/uploads/...` como en URLs remotas absolutas de CDN sin queries ni saltos de directorio.
+- **Backend .NET 10:** Compilación de la solución completa (`RdReporta.Api`, `RdReporta.Infrastructure`, `RdReporta.Application`, `RdReporta.Domain`) con **0 errores y 0 advertencias**.
+- **Pruebas de seguridad de imágenes (`ImageSecurityChecks`):** Ejecutada y aprobada. Verificación de decodificación real JPEG, PNG y WebP, conservación de orientación EXIF, eliminación de metadatos privados (EXIF, XMP, IPTC, bloques de texto PNG), rechazo de archivos corruptos y verificación estricta de propiedad de URL de carga.
+- **Pruebas de carga de video (`VideoUploadChecks`):** Ejecutada y aprobada. 52.2 MiB ensamblado en bloques con SHA-256, reintentos idempotentes y aislamiento por propietario.
+- **Pruebas móviles:** `flutter analyze` 0 errores; `flutter test test/api_client_test.dart test/auth_flow_test.dart` superadas (11/11 pruebas aprobadas).
 
-### 3.1 Loading States (Estados de Carga y Prevención de Multi-Tap)
-- **Indicadores Visuales Claros:**
-  - Spinners contextuales (`CircularProgressIndicator`) en botones de acción y barras de navegación.
-  - Skeletons / Shimmer placeholders en listas (`ListView`) y tarjetas de incidencias para evitar saltos de interfaz (layout shift).
-- **Mitigación de Multi-Tap (Doble Submit):**
-  - Flags de estado `_busy` o `_loading`: deshabilitar botones (`onPressed: _busy ? null : _action`) en el momento exacto en que se dispara una petición asíncrona.
-  - Cancelación o descarte de eventos repetidos mediante debounce/throttle.
-- **Manejo de Tiempos de Espera (Timeouts):**
-  - Timeouts de conexión y recepción configurados en `ApiClient` (10 segundos). Si se excede, mostrar estado de reintento (`RequestState`) sin bloquear la interfaz.
+### 1.4 Controles implementados en el código actual
 
-### 3.2 Validación y Pruebas de Formularios
-- **Gestión de Estado de Formulario:**
-  - Uso de `GlobalKey<FormState>()` para validar atomicamente todos los campos antes del envío.
-  - `AutovalidateMode.onUserInteraction` tras el primer intento de envío, ofreciendo retroalimentación inmediata sin frustrar al usuario al abrir la pantalla.
-- **Gestión del Foco y Usabilidad de Teclado:**
-  - `FocusNode` vinculado a cada input con `TextInputAction.next` y `TextInputAction.done` para guiar al usuario por los campos sin obligarlo a tocar la pantalla continuamente.
-  - Desplazamiento automático al campo con error mediante scroll seguro (`SingleChildScrollView`).
+Configuración privada obligatoria de JWT/DB; contraseñas BCrypt; refresh tokens con SHA-256 y consumo atómico; controles de propiedad en publicaciones y archivos; saneamiento de imágenes y metadatos; límites de solicitudes y tamaño de carga; CORS configurado; separación debug/release; autenticación federada con Google y Apple; almacenamiento local y en la nube (S3/R2/GCS); exclusión de medios y secretos de Git.
 
-### 3.3 Validación de Inputs, Tipos de Datos y Seguridad
-- **Sanitización y Tipado Fuerte:**
-  - Validación de correos electrónicos con expresiones regulares conformes a RFC 5322.
-  - Saneamiento de textos con `trim()` para eliminar espacios invisibles al inicio y final.
-  - Control estricto de longitudes mínimas y máximas (`maxLength: 100` en títulos, `maxLength: 2000` en descripciones).
-- **Protección contra Inyecciones:**
-  - Prevención de scripts o caracteres de control maliciosos en inputs de texto.
-  - Sanitización en cliente y validación innegociable en backend (.NET) con queries parametrizadas en Entity Framework Core.
-- **Teclados Contextuales:**
-  - `TextInputType.emailAddress` para correos, `TextInputType.phone` para teléfonos, `TextInputType.multiline` para descripciones de incidencias.
+## 2. Referencias consultadas y aplicación
 
-### 3.4 Gestión de Permisos del Dispositivo (Runtime Permissions)
-- **Principio de Mínimo Privilegio:**
-  - La aplicación solo solicita ubicación (`Geolocator`) en el momento en que el usuario toca "Usar mi ubicación" o crea un reporte, jamás de forma sorpresiva al arrancar la app.
-- **Manejo de Estados de Permiso:**
-  - `LocationPermission.denied`: Explicar al usuario la razón por la que se requiere el permiso ("Rationale") y solicitarlo nuevamente.
-  - `LocationPermission.deniedForever`: Mostrar diálogo explicativo con botón directo a `Geolocator.openAppSettings()`.
-- **Degradación Elegante:**
-  - Si el usuario rechaza compartir su ubicación GPS, la aplicación permite seleccionar manualmente la provincia y municipio desde un catálogo validado.
+Se redactaron criterios propios para RDReporta, sin copiar listas completas. Los identificadores RD-* son internos y **no son identificadores oficiales OWASP**.
 
-### 3.5 Pruebas de Flujos de Login y Registro
-- **Validación de Credenciales:**
-  - Validación de contraseña segura (mínimo 8 caracteres, al menos una letra mayúscula, una minúscula y un número).
-  - Normalización de correo a minúsculas para evitar cuentas duplicadas por capitalización.
-- **Prevención de Enumeración de Usuarios:**
-  - Mensajes de error deliberadamente neutrales ("Credenciales incorrectas" o "No se pudo iniciar sesión con estos datos") tanto si el correo no existe como si la contraseña es errónea.
-- **Protección contra Fuerza Bruta:**
-  - Soporte para cabeceras HTTP 429 (`Too Many Requests`) con mensaje amigable al usuario indicándole que espere antes de reintentar.
+| Repositorio y Markdown consultado | Uso en esta guía |
+| --- | --- |
+| [OWASP ASVS, README de v5.0.0](https://github.com/OWASP/ASVS/blob/v5.0.0/README.md) | Requisitos verificables para API/panel y referencias con versión. Se propone ASVS nivel 2 como objetivo de evaluación, no como nivel alcanzado. |
+| [OWASP MASVS, README](https://github.com/OWASP/owasp-masvs/blob/master/README.md) | Cobertura de seguridad y privacidad móvil. |
+| [OWASP MASTG, README](https://github.com/OWASP/owasp-mastg/blob/master/README.md) | Método de pruebas móviles y análisis del binario. |
+| [OWASP API Security Top 10, edición 2023](https://github.com/OWASP/API-Security/blob/master/editions/2023/en/0x11-t10.md) | Inventario de riesgos API; no sustituye una matriz completa de verificación. |
+| [OWASP WSTG, README](https://github.com/OWASP/wstg/blob/master/README.md) | Procedimientos de evaluación web. Para ejecutar, fijar una versión de escenarios; la referencia consultada identifica 4.2 como publicación estable. |
+| [OWASP File Upload Cheat Sheet](https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/File_Upload_Cheat_Sheet.md) | Defensa de cargas y recuperación de archivos mediante varias capas. |
+| [OWASP Session Management Cheat Sheet](https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/Session_Management_Cheat_Sheet.md) | Protección de sesiones web, cookies y revocación. |
+| [OWASP Logging Cheat Sheet](https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/Logging_Cheat_Sheet.md) | Eventos de seguridad y exclusión de secretos en registros. |
+| [MobSF, README](https://github.com/MobSF/Mobile-Security-Framework-MobSF/blob/master/README.md) | Análisis estático/dinámico de aplicaciones móviles; resultados sujetos a revisión manual. |
+| [OpenSSF Scorecard, README](https://github.com/ossf/scorecard/blob/main/README.md) | Revisiones del repositorio, permisos, dependencias y procesos de entrega. |
 
-### 3.6 Control de Sesión y Ciclo de Vida de Tokens
-- **Arquitectura de Tokens Segura:**
-  - `accessToken` (JWT de vida corta) y `refreshToken` (token opaco de vida prolongada).
-- **Almacenamiento Cifrado:**
-  - `FlutterSecureStorage` (Keystore / Keychain) cuando el usuario marca "Recordar sesión". Si no la marca, los tokens se conservan únicamente en memoria volátil (`_memorySession`).
-- **Renovación Concurrente Compartida (Mutex/Single-flight):**
-  - Implementación en `ApiClient`: si múltiples peticiones simultáneas reciben un código 401, se sincronizan sobre un único `Future<bool> _refreshing`. Al resolverse la renovación, todas las peticiones en cola se reintentan con el nuevo token sin forzar múltiples llamadas al backend ni provocar cierres de sesión accidentales.
-- **Cierre de Sesión Resiliente:**
-  - `logout()` elimina los tokens locales de inmediato, incluso si no hay conexión a internet para notificar al servidor, garantizando que el usuario quede desautenticado en el dispositivo.
+ASVS está fijado al tag consultado. Las referencias master/main son móviles: al ejecutar una evaluación, registrar el commit o versión exactos de cada guía y herramienta. Consultar README no demuestra que se hayan verificado todos los requisitos del repositorio.
 
-### 3.7 Resiliencia ante Pérdida de Conexión (Offline State)
-- **Manejo No Destructivo de Errores:**
-  - Un corte de red o error de servidor no se interpreta jamás como una lista vacía; se preservan los datos en pantalla y se informa al usuario mediante banner o snackbar.
-- **Patrón Outbox para Operaciones Críticas:**
-  - Encolado local de reportes pendientes cuando no hay conectividad para sincronizarlos tan pronto se restablezca el servicio.
-- **Reintentos con Backoff Exponencial:**
-  - Prevención del problema de "Thundering Herd" (reintentos simultáneos que saturan el backend al restablecerse la red).
+## 3. Cómo registrar una auditoría
 
-### 3.8 Notificaciones Push y Deep Linking (Rutas Seguras)
-- **Recepción en Diferentes Estados del Ciclo de Vida:**
-  - **Foreground:** Notificación in-app no invasiva (banner/snackbar) sin interrumpir la tarea activa del usuario.
-  - **Background / Terminated:** Apertura de la aplicación a través de la notificación del sistema con resolución segura del payload.
-- **Validación Estricta de Rutas (Evitar Open Redirects):**
-  - El payload de la notificación solo debe admitir identificadores de entidad (ej. `{"type": "post_detail", "postId": "post-123"}`) y mapearse internamente a la ruta controlada `MaterialPageRoute(builder: (_) => PostDetailScreen(postId: id))`. Nunca permitir ejecutar URLs arbitrarias no sanitizadas.
-- **Preservación del Back Stack:**
-  - Al abrir un reporte directamente desde una notificación, presionar el botón "Atrás" debe navegar naturalmente a la pantalla principal (`HomeScreen`), no cerrar la app bruscamente.
+### Estados permitidos
 
-### 3.9 Accesibilidad Visual: Contraste y Tamaño de Texto
-- **Estándar WCAG 2.1 Nivel AA:**
-  - Ratio de contraste mínimo de 4.5:1 para texto normal y 3:1 para texto grande o elementos gráficos esenciales.
-  - Temas claro y oscuro contrastados (paleta Rosé Pine / Rosé Pine Dawn) validados con herramientas de contraste cromático.
-- **Soporte de Dynamic Type y TextScaleFactor:**
-  - Prevención de desbordamientos visuales (`RenderFlex overflow`) ante fuentes grandes configuradas por el usuario en el sistema operativo mediante el uso de `Expanded`, `Flexible`, `Wrap` y `TextOverflow.ellipsis`.
+| Estado | Significado |
+| --- | --- |
+| Verificado | Prueba completada con resultado esperado y evidencia vinculada a una revisión/binario. |
+| Implementado, por verificar | Código o configuración presente, sin evidencia suficiente de ejecución actual. |
+| Parcial | Solo se cubren algunas condiciones del control. |
+| Fallido | Existe una comprobación reproducible que no cumple el criterio. |
+| Pendiente | Aún no ejecutado o no implementado. |
+| No aplica | Justificación específica, revisada y fechada. |
 
-### 3.10 Medición de Comportamiento, Embudos y Detección de Errores
-- **Navegación Trazable (NavigatorObserver):**
-  - Registro de transiciones entre pantallas para construir el historial de navegación del usuario.
-- **Breadcrumbs de Sesión (Migas de Pan):**
-  - Registro de los últimos 20 eventos de usuario antes de un crash (ej. "Entró al mapa", "Filtró por Servicios Públicos", "Pulsó Confirmar"), facilitando la reproducción exacta de fallos en desarrollo.
-- **Detección de Frustración del Usuario (Rage Taps):**
-  - Monitoreo de toques repetitivos rápidos en un mismo elemento sin respuesta, señal de que la interfaz está bloqueada o es poco intuitiva.
+Un escaneo que falla o no consulta su fuente no se registra como “cero vulnerabilidades”. No calcular una aprobación global a partir de un subconjunto.
 
-### 3.11 Accesibilidad Universal (A11y / Screen Readers)
-- **Áreas Táctiles Mínimas:**
-  - Botones e íconos interactivos con un tamaño táctil mínimo de 48x48 dp (Material Design) para facilitar la pulsación en pantallas de cualquier tamaño y a personas con dificultades motoras.
-- **Semántica para Lectores de Pantalla:**
-  - Inclusión de widgets `Semantics(button: true, label: "...")` en avatares, tarjetas y controles personalizados para que TalkBack (Android) y VoiceOver (iOS) anuncien claramente la función de cada elemento.
+### Ficha mínima de evidencia
 
-### 3.12 Analítica Móvil Ética y Telemetría
-- **Datos de Diagnóstico Agregados:**
-  - Medición de pantallas más vistas, tasas de éxito en creación de reportes y tiempos de carga.
-- **Anonimización Incondicional:**
-  - Cero Información de Identificación Personal (PII) en los eventos de analítica: prohibido enviar contraseñas, correos, tokens o coordenadas de domicilios particulares en las propiedades del evento.
-- **Mecanismo de Opt-Out:**
-  - Respeto a las preferencias del usuario sobre telemetría y diagnóstico según las directrices de privacidad de la Unión Europea (GDPR) y California (CCPA).
+- ID interno, requisito/versiones de referencia y superficie evaluada.
+- Fecha, responsable, commit y resumen de cambios locales sin commit.
+- Entorno, roles/cuentas de prueba y configuración relevante, sin secretos.
+- Versión de herramienta; para binarios, hash SHA-256, tipo debug/release y firma.
+- Pasos reproducibles, resultado esperado/observado y archivo de evidencia.
+- Severidad justificada, corrección, responsable y fecha objetivo.
+- Reprueba sobre la versión corregida; excepciones con vencimiento.
 
-### 3.13 Crash Reporting en Tiempo Real
-- **Captura Global de Excepciones:**
-  - Intercepción de errores del framework con `FlutterError.onError`.
-  - Captura de excepciones asíncronas no controladas en el Isolate raíz con `PlatformDispatcher.instance.onError`.
-- **Desofuscación de Trazas:**
-  - Generación y custodia de archivos de símbolos (`mapping.txt` de ProGuard en Android, archivos `.dSYM` en iOS, y split debug info de Flutter) para disponer de líneas de código exactas en paneles de reporte (Sentry o Firebase Crashlytics).
+Guardar registros y capturas depurados en artifacts/ o almacenamiento privado. No versionar tokens, credenciales, correos reales ni coordenadas sensibles. El ZIP de maintenance/archive/ es respaldo local, no evidencia para publicar.
 
-### 3.14 Comprobación de Enlaces (Deep Links y URLs Externas)
-- **Universal Links (iOS) y App Links (Android):**
-  - Verificación de dominio mediante archivos `/.well-known/assetlinks.json` en Android y `/.well-known/apple-app-site-association` en iOS para que los enlaces `https://rdreporta.com/posts/...` se abran de forma segura en la aplicación oficial sin que apps maliciosas puedan interceptar el esquema.
-- **Apertura Segura con url_launcher:**
-  - Sanitización de URLs externas comprobando esquemas seguros (`https://`) y apertura con `LaunchMode.externalApplication` o WebView aislado con `JavaScriptMode.disabled` si no se requiere ejecución de scripts.
+## 4. Modelo de amenazas del proyecto
 
-### 3.15 Cuellos de Botella y Optimización de Rendimiento
-- **Tasa de Refresco Fluida (60 / 120 FPS):**
-  - Reducción del trabajo computacional en el hilo de interfaz (UI thread). Operaciones pesadas de parseo JSON delegadas a `compute()` o isolates secundarios.
-- **Optimización del Árbol de Widgets:**
-  - Uso riguroso de constructores `const` para reutilizar instancias en memoria y evitar reconstrucciones superfluas.
-  - Aislamiento de áreas con animaciones complejas usando `RepaintBoundary`.
-- **Prevención de Fugas de Memoria (Memory Leaks):**
-  - Desconexión obligatoria de `TextEditingController`, `TabController`, `StreamSubscription` y listeners en el método `dispose()` de los widgets con estado.
-- **Gestión Eficiente de Imágenes:**
-  - Uso de `CachedNetworkImage` con limitación de resolución en memoria (`memCacheWidth`, `memCacheHeight`) para evitar saturar la memoria RAM con fotografías de alta resolución tomadas con la cámara del dispositivo.
+| Activo/frontera | Amenaza que debe comprobarse |
+| --- | --- |
+| Invitado → API | Escrituras sin sesión, extracción masiva o abuso de recursos. |
+| Ciudadano A → objetos de B | Modificación/borrado de reportes, medios, perfil o tokens de dispositivo ajenos. |
+| Ciudadano → moderación | Acceso a roles o funciones privilegiadas y cambios de estado no autorizados. |
+| Móvil/panel → sesión | Robo de tokens, reutilización de renovación y revocación incompleta. |
+| Carga → almacenamiento → publicación | Archivo dañino, agotamiento de disco, acceso directo a medios retirados. |
+| API → Google/SMTP/FCM | Respuestas no confiables, credenciales inválidas, caídas y filtración de datos. |
+| Repositorio/CI → release | Dependencia comprometida, permisos excesivos o binario diferente del auditado. |
+| Cuenta/datos → respaldo/eliminación | Medios huérfanos, borrado incompleto y restauración insegura. |
 
-### 3.16 Seguridad de Datos Sensibles, Secretos y Criptografía
-- **Almacenamiento Criptográfico Seguro:**
-  - Claves criptográficas protegidas por hardware (Android Keystore / iOS Secure Enclave).
-  - Descarte total de `SharedPreferences` o archivos de texto plano para credenciales o tokens.
-- **Certificate Pinning (SSL Pinning):**
-  - Validación del hash SHA-256 de la clave pública del servidor HTTPS para frustrar ataques de intermediario (MITM) causados por certificados de CA falsificados o proxies locales de intercepción (Burp Suite, Charles).
+Usar como mínimo invitado, dos ciudadanos distintos, moderador y administrador en las evaluaciones de permisos. Separar datos de pruebas y datos reales.
 
-### 3.17 Privacidad de Datos y Transparencia (Data Governance)
-- **Inventario de Datos Recogidos:**
-  - **Ubicación Geográfica:** Coordenadas latitud/longitud exclusivamente asociadas a incidencias de la vía pública reportadas por el usuario; no se rastrea la ubicación en segundo plano.
-  - **Fotografías:** Imágenes tomadas voluntariamente por el usuario para evidenciar una avería o problema comunitario.
-  - **Credenciales y Perfil:** Correo electrónico, nombre de usuario y provincia/municipio seleccionados.
-- **Tratamiento y Protección:**
-  - Los datos se transmiten cifrados (HTTPS TLS 1.3) y se almacenan en bases de datos con control de acceso restringido por roles.
-  - Supresión de metadatos EXIF sensibles antes del almacenamiento definitivo.
-- **Derechos del Usuario:**
-  - Posibilidad de editar perfil, revocar permisos desde el sistema operativo y solicitar el borrado completo de su cuenta y sus publicaciones.
+## 5. Matriz de controles del proyecto
 
-### 3.18 Pantalla Inicial (Splash Screen y Arranque en Frío)
-- **Eliminación del Parpadeo Blanco ("White Flash"):**
-  - Configuración del tema nativo con splash drawable en Android (`launch_background.xml` y Android 12+ `SplashScreen API`) y LaunchScreen en iOS para que coincida exactamente con el fondo de la app antes de que arranque la máquina virtual de Dart.
-- **Verificación Asíncrona Inmediata:**
-  - Lectura ultrarrápida del token en `FlutterSecureStorage` (<150 ms) y redirección limpia:
-    - Si existe token válido: pantalla principal (`HomeScreen`).
-    - Si no existe: pantalla principal en modo invitado con invitación no intrusiva a iniciar sesión al intentar interactuar o crear reportes.
+La situación inicial refleja evidencia anterior o código revisado; cada fila necesita su propia ficha para pasar a Verificado.
 
-### 3.19 Compatibilidad con Versiones Antiguas (Legacy) y Futuras
-- **Compatibilidad con Ecosistema Android:**
-  - `minSdkVersion 21` (Android 5.0 Lollipop) o 24 (Android 7.0), garantizando compatibilidad con más del 95% de terminales en circulación.
-  - `targetSdkVersion 34+` (Android 14/15) para cumplir con las exigencias regulatorias de Google Play Console.
-- **Compatibilidad con Ecosistema iOS:**
-  - `IPHONEOS_DEPLOYMENT_TARGET = 13.0` o superior, abarcando desde dispositivos iPhone antiguos (iPhone 6s/7/8) hasta los modelos más recientes.
-- **Arquitectura de Binarios:**
-  - Soporte exclusivo para arquitecturas de 64 bits (`arm64-v8a` en Android, `arm64` en iOS), optimizando rendimiento y consumo energético.
-- **Verificación Condicional de APIs:**
-  - Comprobación dinámica de versión de sistema operativo antes de invocar funciones modernas que no existen en versiones legacy.
+| ID | Control y criterio de aceptación | Estado inicial |
+| --- | --- | --- |
+| RD-AUTH-01 | Firma, audiencia, emisor y vencimiento JWT válidos; rechazar alteraciones. | Implementado, por verificar. |
+| RD-AUTH-02 | Renovación concurrente consume el token una vez; el anterior se rechaza. | Evidencia histórica; repetir tras cambios. |
+| RD-AUTH-03 | Logout, recuperación y revocación tienen efectos documentados en access/refresh y múltiples dispositivos. | Parcial. |
+| RD-AUTH-04 | Sesión persistente resiste cierre/arranque y caída de red; secretos nunca en logs. | Implementado, por verificar. |
+| RD-AUTH-05 | Google y Apple validados criptográficamente en servidor (GoogleJsonWebSignature / Apple JWKS); cliente móvil conectado. | Implementado; verificación E2E con cuentas reales pendiente. |
+| RD-AUTH-06 | Recuperación: respuesta neutral, caducidad, consumo único, concurrencia y entrega SMTP. | Código/evidencia parcial; entrega pendiente. |
+| RD-API-01 | Operaciones sobre IDs ajenos se rechazan y no cambian datos. | Evidencia histórica parcial. |
+| RD-API-02 | Solo roles autorizados crean categorías, moderan o acceden a administración. | Evidencia histórica parcial. |
+| RD-API-03 | DTO no admite cambios de rol/propietario ni expone secretos, correo privado o tokens. | Pendiente de matriz completa. |
+| RD-API-04 | Tamaños, paginación, conexiones SSE y cargas tienen límites medidos. | Parcial. |
+| RD-API-05 | Crear/reaccionar/seguir/ver no permite inflar contadores o automatizar abuso sin límites. | Pendiente de pruebas de abuso. |
+| RD-UP-01 | Extensión, contenido, propietario y rutas se validan; soporte local y cloud (S3/R2/GCS). | Verificado en pruebas automatizadas. |
+| RD-UP-02 | Imágenes mantienen orientación y pierden metadatos; entradas dañadas se rechazan. | Verificado (ImageSecurityChecks). |
+| RD-UP-03 | Bloques repetidos/conflictivos, cancelación y finalización no corrompen archivos; traslado a nube soportado. | Verificado (VideoUploadChecks). |
+| RD-UP-04 | Medio oculto/eliminado cumple la política al consultar su URL directa. | Pendiente de verificar. |
+| RD-UP-05 | Cuotas, temporales huérfanos y eliminación física tienen política y comprobación. | Pendiente. |
+| RD-WEB-01 | Contenido de reportes/perfiles no ejecuta scripts; panel web compila sin errores (npm run build). | Compilación verificada; CSP dinámico pendiente. |
+| RD-WEB-02 | Tokens del panel no quedan accesibles innecesariamente a JavaScript; migración de sesión evaluada. | sessionStorage actual; mejora pendiente. |
+| RD-WEB-03 | Si se adoptan cookies, se implementan Secure/HttpOnly/SameSite y defensa CSRF adecuada. | Pendiente, condicionado a migración. |
+| RD-MOB-01 | Revisar almacenamiento, copias, logs y caché en Android/iOS release. | Configuración presente; binario pendiente. |
+| RD-MOB-02 | Permisos denegados/revocados y GPS apagado no bloquean ni publican ubicación incorrecta. | Implementación presente; prueba real pendiente. |
+| RD-MOB-03 | Componentes exportados, enlaces y navegación no permiten acciones privilegiadas. | Pendiente de cobertura completa. |
+| RD-MOB-04 | Binario firmado auditado con MobSF y procedimientos MASTG seleccionados. | Pendiente. |
+| RD-OPS-01 | HTTPS, cabeceras, CORS y confianza del proxy funcionan en el despliegue real. | Configuración base; despliegue pendiente. |
+| RD-OPS-02 | Respaldos DB/medios/claves se restauran y cumplen retención definida. | Pendiente. |
+| RD-OPS-03 | Logs depurados, alertas, acceso y retención documentados. | Pendiente. |
+| RD-SUP-01 | Escaneos exitosos de dependencias y secretos actuales/históricos, con revisión de alertas. | Evidencia histórica limitada. |
+| RD-SUP-02 | CI con permisos mínimos, revisiones y dependencias/actions fijadas apropiadamente. | CodeQL/Dependabot configurados; verificación pendiente. |
+| RD-PRIV-01 | Política coincide con datos reales, terceros, eliminación y retención. | Versión de desarrollo; plazos pendientes. |
 
----
+### Cobertura de API Security 2023
 
-## 4. Checklist de Ejecución y Auditoría Automatizada del Proyecto
+Aplicación propuesta de los diez riesgos, basada en la [edición consultada](https://github.com/OWASP/API-Security/blob/master/editions/2023/en/0x11-t10.md):
 
-Para auditar y validar la calidad del código, la compilación de todos los subsistemas y la ausencia de vulnerabilidades, ejecutar desde la raíz del proyecto:
+| Riesgo | Revisión específica en RDReporta |
+| --- | --- |
+| API1: objetos | Cambiar IDs de reportes, perfiles, cargas y dispositivos. |
+| API2: autenticación | Tokens, recuperación y acceso externo. |
+| API3: propiedades | Campos editables y datos privados de DTO. |
+| API4: recursos | Disco, imágenes, video, correo y SSE. |
+| API5: funciones | Endpoints de moderador/administrador. |
+| API6: flujos sensibles | Automatización de publicaciones e interacciones. |
+| API7: SSRF | Verificar si alguna función descarga URLs externas; justificar si no aplica. |
+| API8: configuración | CORS, HTTPS, errores y secretos. |
+| API9: inventario | Rutas activas, debug y clientes desactualizados. |
+| API10: terceros | Validación y fallos de proveedores. |
 
-```powershell
-.\scripts\run_audit.ps1
-```
+## 6. Procedimientos prioritarios
 
-### Resultados de la Auditoría en RDReporta:
-1. **Compilación Backend (.NET 10):** Aprobada sin errores.
-2. **Escaneo de Vulnerabilidades NuGet:** Aprobado (0 dependencias vulnerables).
-3. **Pruebas Automatizadas Móvil (Flutter Test):** 21 pruebas unitarias y de interfaz superadas con éxito (0 fallos).
-4. **Análisis Estático Móvil (Flutter Analyze):** Aprobado ("No issues found!").
-5. **Compilación Panel Administrativo (React + Vite + TypeScript):** Aprobada con éxito.
+### 6.1 Cargas y publicación de medios
 
-**Estado del Sistema:** 100% de verificaciones aprobadas.
+Revisión adaptada de [File Upload Cheat Sheet](https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/File_Upload_Cheat_Sheet.md). Ejecutar con archivos de prueba en entorno aislado y límites de recursos.
+
+- Probar extensiones dobles, MIME engañoso, rutas manipuladas y contenedores truncados.
+- Comprobar nombres generados, propiedad y límites reales de la carga.
+- Separar validación del contenedor de validación del contenido: una cabecera correcta no garantiza un archivo inocuo.
+- Revisar almacenamiento público actual bajo wwwroot; decidir si se necesita servicio de medios con control de acceso o almacenamiento aislado.
+- Comprobar enlaces directos después de ocultar/eliminar publicaciones y tras eliminar una cuenta.
+- Medir acumulación de cargas canceladas y reintentos; definir cuotas y limpieza.
+- Evaluar escaneo antimalware según los formatos y riesgo. No declararlo implementado.
+
+Criterio: rechazo sin archivos finales inválidos, sin apropiación de cargas ajenas y sin acceso que contradiga la política de publicación.
+
+### 6.2 Sesiones persistentes y panel
+
+La persistencia móvil solicitada se conserva como decisión de producto; no se añade caducidad silenciosamente. Documentar riesgo, revocación, sesiones/dispositivos y reautenticación de acciones sensibles.
+
+El panel utiliza sessionStorage, accesible desde JavaScript. La [guía de sesiones](https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/Session_Management_Cheat_Sheet.md) sirve para evaluar una migración a cookies: HttpOnly limita lectura del token, pero no elimina XSS ni acciones de un atacante dentro de la sesión. SameSite no reemplaza toda protección CSRF.
+
+Comprobar logout sin red y explicar qué credenciales quedan válidas en servidor; no confundir borrado local con revocación inmediata del JWT.
+
+### 6.3 Registro de eventos y respuesta
+
+Según [Logging Cheat Sheet](https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/Logging_Cheat_Sheet.md), registrar eventos útiles sin incluir directamente tokens, contraseñas, cadenas de conexión o claves.
+
+Propuesta: ID de correlación, fecha UTC, tipo de evento, actor seudonimizado, objeto y resultado. Depurar cuerpos de solicitud, geolocalización y datos personales. Revisar acceso, retención y falsificación de líneas de log.
+
+Preparar un procedimiento para revocar credenciales, preservar evidencia, comunicar incidentes y volver a verificar la corrección.
+
+### 6.4 Binario móvil y cadena de suministro
+
+[MobSF](https://github.com/MobSF/Mobile-Security-Framework-MobSF/blob/master/README.md) permite revisar artefactos móviles. Usar el candidato release real en un entorno privado; conservar hash, versión y resultado. Revisar manualmente falsos positivos y limitaciones en código Dart compilado.
+
+La revisión del repositorio toma [OpenSSF Scorecard](https://github.com/ossf/scorecard/blob/main/README.md) como apoyo: comprobar permisos de CI, revisión de cambios, actualización de paquetes y dependencias fijadas. El workflow actual usa tags de Actions; evaluar pinning por SHA y actualización controlada. No hay Scorecard ejecutado en esta revisión.
+
+CodeQL local está configurado para C# y JavaScript/TypeScript, no demuestra cobertura del código Dart. Registrar cada ejecución de GitHub y resolver sus alertas, no solo la existencia del YAML.
+
+## 7. Backlog de riesgos y dependencias
+
+Prioridades propuestas por impacto y exposición; no representan vulnerabilidades explotadas ni puntuaciones CVSS calculadas.
+
+| Prioridad | Acción | Criterio de cierre |
+| --- | --- | --- |
+| Alta | Rotar secretos/contraseñas históricos que sigan válidos y evaluar historial Git. | Credenciales antiguas rechazadas; escaneo completo documentado. |
+| Alta | Revisar acceso directo a medios ocultos/eliminados y eliminación física. | Política definida y casos de acceso/borrado verificados. |
+| Alta | Completar matriz de propiedad y roles en todas las escrituras. | Invitado/A/B/moderador/admin evaluados con evidencia. |
+| Alta antes del lanzamiento | Producir y empaquetar candidatos release del panel web y aplicaciones. | Compilación de admin/ corregida y verificada (npm run build). Pendiente empaquetado para servidor web. |
+| Alta antes del lanzamiento | Configurar despliegue HTTPS, respaldos y restauración. | Prueba del entorno y restauración satisfactoria. |
+| Media | Reducir exposición de tokens del panel; evaluar MFA para cuentas privilegiadas. | Diseño aprobado, controles implementados y evaluados. |
+| Media | Validar Apple, Google, FCM y SMTP en entorno real con credenciales activas. | Endpoints y validación criptográfica de Apple y Google completados; pruebas en dispositivos reales y envío SMTP pendientes. |
+| Media | Controlar consumo y abuso de cargas, SSE e interacciones. | Límites y respuesta medidos con carga acotada. |
+| Media | Firmar/auditar binario Android y verificar iOS. | Evidencia vinculada a artefactos finales. |
+| Media | Retención, eliminación, política y alertas. | Plazos definidos y comportamiento probado. |
+| Media | Confirmar CI remoto y revisar licencias. | Ejecuciones, alertas resueltas y decisiones registradas. |
+| Baja funcional | Outbox, recuperación de borradores y monitoreo de rendimiento. | Casos medidos; no afirmar que ya existen. |
+
+La [licencia de ImageSharp 3.1.12](https://github.com/SixLabors/ImageSharp/blob/v3.1.12/LICENSE) debe revisarse si cambian las condiciones comerciales. Una ausencia histórica de CVE no decide obligaciones de licencia.
+
+## 8. Calidad funcional, privacidad y accesibilidad
+
+Estas comprobaciones complementan seguridad; no deben contabilizarse como controles de seguridad aprobados solo por tener interfaz.
+
+| Área | Escenarios de aceptación |
+| --- | --- |
+| Formularios y carga | Teclado, texto largo, doble envío, errores parciales y reintentos. |
+| Ubicación | Permisos revocados, posición obsoleta, precisión insuficiente y edición manual. |
+| Arranque | Sin sesión → login; sesión válida → restauración; caída de red → conservar credenciales sin inventar autenticación válida. |
+| Multimedia | Fotos completas, carrusel, pausa al cambiar página y cancelación de carga. |
+| Vistas | Mismo contador entre módulos, reconexión SSE y deduplicación de impresiones. |
+| Moderación | Roles reales, denuncias repetidas, contenido retirado y trazabilidad. |
+| Accesibilidad | Contraste medido, texto ampliado, lector de pantalla, foco y objetivos táctiles en ambos temas. |
+| Rendimiento | RAM, batería, fluidez y transferencia medidas en dispositivos reales. |
+| Privacidad | Perfil público frente a correo privado, coordenadas voluntarias, eliminación y terceros. |
+| Compatibilidad | Versiones/arquitecturas reales del candidato; no porcentajes de cobertura inventados. |
+
+No afirmar anonimato de reportes identificados, cumplimiento WCAG por la paleta, pinning implementado, almacenamiento invulnerable o ausencia de rastreo de terceros sin comprobarlo.
+
+## 9. Ejecución reproducible
+
+**No se ejecutaron estos comandos al actualizar el documento.** Cuando se autorice la auditoría, usar un entorno de pruebas y conservar salidas/errores completos en privado.
+
+Desde la raíz:
+
+    .\scripts\run_audit.ps1
+
+Para incluir HTTP, iniciar antes la API de auditoría y su PostgreSQL local:
+
+    .\scripts\run_audit.ps1 -ApiBaseUrl http://127.0.0.1:5001/api
+
+La comprobación HTTP crea y elimina una cuenta temporal mediante el contenedor rdreporta_postgres. No ejecutarla contra producción ni apuntarla a datos reales.
+
+El script actual reúne 11 controles locales y uno HTTP opcional. Sus límites:
+
+- La búsqueda de secretos identifica patrones conocidos en archivos rastreados; no sustituye escaneo general del historial.
+- Las comprobaciones de configuración son patrones de texto, no inspección del comportamiento release.
+- npm usa un umbral de alta/crítica; un exit code satisfactorio no implica cero hallazgos de cualquier severidad.
+- Las pruebas de servidor de imágenes/video no certifican transferencia móvil real.
+- No ejecuta automáticamente todos los procedimientos ASVS/MASTG/WSTG, MobSF o Scorecard.
+
+## 10. Criterios para publicar
+
+- Candidato identificado por commit, cambios locales, hash y firma.
+- Compilaciones/análisis/pruebas aplicables completados, con resultados actuales.
+- Riesgos críticos/altos corregidos o excepción explícita documentada con vencimiento.
+- Propiedad/roles, cargas, sesión y privacidad verificados sobre ese candidato.
+- Servicios externos utilizados comprobados; los incompletos no se presentan como disponibles.
+- HTTPS, cuotas, respaldos, restauración y monitoreo operativos.
+- Política de privacidad y eliminación coinciden con el comportamiento real.
+- Repruebas documentadas tras cada corrección relevante.
+
+No utilizar “100 % seguro”, “certificado OWASP” ni “auditoría aprobada” sin alcance, fecha y evidencia. Esta guía organiza la evaluación; los controles pendientes siguen pendientes.
+
+## 11. Historial y documentación relacionada
+
+| Fecha | Cambio |
+| --- | --- |
+| 30/09/2026 | Auditoría automatizada anterior, 12/12 controles registrados y 26 pruebas móviles. |
+| 01/10/2026 | Limpieza de archivos/dependencias; análisis móvil correcto y compilación del panel fallida. |
+| 01/10/2026 | Revisión documental con fuentes GitHub, estados de evidencia, modelo de amenazas y matriz RD-*. Sin nueva ejecución de pruebas. |
+| 05/10/2026 | Implementación de Sign in with Apple (/api/auth/apple con validación JWKS oficial), servicio en la nube S3StorageService (R2/S3/GCS/CDN) con UploadReference adaptado, y corrección de compilación TypeScript en admin/ (npm run build aprobado con 0 errores). Pruebas de seguridad de imágenes y videos revalidadas exitosamente. |
+
+Consultar [README](README.md), [configuración de servicios](CONFIGURACION_SERVICIOS.md), [resumen técnico](RESUMEN_PROYECTO.md) e [inventario de limpieza](docs/AUDITORIA_ARCHIVOS_SIN_USO.md). Si cambian implementación o resultados, actualizar la evidencia y sus fechas.

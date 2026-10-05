@@ -25,6 +25,14 @@ public interface ICurrentUserService
 
 public interface IStorageService
 {
-    Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType, CancellationToken cancellationToken = default);
+    Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType, Guid ownerUserId, CancellationToken cancellationToken = default);
     Task DeleteFileAsync(string fileUrl, CancellationToken cancellationToken = default);
 }
+
+public record AppleUserTokenInfo(string Sub, string Email, bool EmailVerified);
+
+public interface IAppleAuthService
+{
+    Task<AppleUserTokenInfo> ValidateTokenAsync(string identityToken, CancellationToken cancellationToken = default);
+}
+

@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../feed/feed_screen.dart';
@@ -6,6 +8,9 @@ import '../posts/create_post_screen.dart';
 import '../popular_and_profile_screens.dart';
 import '../../shared/widgets/auth_guard.dart';
 import '../../core/firebase_service.dart';
+import '../../core/networking/api_client.dart';
+import '../feed/post_detail_screen.dart';
+import '../notifications_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,8 +19,11 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _currentIndex = 0;
+  Timer? _notificationTimer;
+  StreamSubscription<RemoteMessage>? _messages;
+  final _api = ApiClient();
 
   final List<Widget> _screens = const [
     FeedScreen(),
@@ -27,12 +35,89 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    FirebaseService.syncToken();
+    WidgetsBinding.instance.addObserver(this);
+    _api.sessionChanges.addListener(_refreshNotifications);
+    FirebaseService.pendingOpen.addListener(_onPendingOpen);
+    _messages = FirebaseService.messages.stream.listen(_showNotification);
+    _resumeNotifications();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _onPendingOpen());
+  }
+
+  void _refreshNotifications() {
+    unawaited(_api.refreshUnreadNotifications());
+  }
+
+  void _resumeNotifications() {
+    _refreshNotifications();
+    unawaited(FirebaseService.syncToken());
+    _notificationTimer?.cancel();
+    _notificationTimer = Timer.periodic(
+        const Duration(seconds: 30), (_) => _refreshNotifications());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _resumeNotifications();
+    } else {
+      _notificationTimer?.cancel();
+    }
+  }
+
+  Future<bool> _belongsToSession(RemoteMessage message) async {
+    if (!await _api.isLoggedIn()) return false;
+    final recipient = message.data['userId'];
+    return recipient != null && recipient == await _api.getCurrentUserId();
+  }
+
+  Future<void> _showNotification(RemoteMessage message) async {
+    if (!await _belongsToSession(message) || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content:
+          Text(message.notification?.body ?? 'Tienes una nueva notificación.'),
+      action: SnackBarAction(label: 'Ver', onPressed: () => _openPush(message)),
+    ));
+  }
+
+  void _onPendingOpen() {
+    final message = FirebaseService.pendingOpen.value;
+    if (message == null || !mounted) return;
+    FirebaseService.pendingOpen.value = null;
+    unawaited(_openPush(message));
+  }
+
+  Future<void> _openPush(RemoteMessage message) async {
+    if (!await _belongsToSession(message) || !mounted) return;
+    final postId = message.data['postId'];
+    final notificationId = message.data['notificationId'];
+    if (notificationId is String) {
+      try {
+        await _api.markNotificationsRead([notificationId]);
+      } catch (_) {}
+    }
+    if (!mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => postId is String && postId.isNotEmpty
+          ? PostDetailScreen(postId: postId)
+          : const NotificationsScreen(),
+    ));
+    _refreshNotifications();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _notificationTimer?.cancel();
+    _messages?.cancel();
+    _api.sessionChanges.removeListener(_refreshNotifications);
+    FirebaseService.pendingOpen.removeListener(_onPendingOpen);
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: context.baseColor,
       extendBody: true,
       body: IndexedStack(
         index: _currentIndex,
@@ -47,7 +132,8 @@ class _HomeScreenState extends State<HomeScreen> {
       top: false,
       bottom: true,
       child: Container(
-        margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+        // Keep a clear visual gap between screen content and the navigation.
+        margin: const EdgeInsets.fromLTRB(12, 32, 12, 10),
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 7),
         decoration: BoxDecoration(
           color: context.surfaceColor,
@@ -56,7 +142,7 @@ class _HomeScreenState extends State<HomeScreen> {
             color: context.borderColor,
             width: 2,
           ),
-),
+        ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
@@ -116,7 +202,7 @@ class _HomeScreenState extends State<HomeScreen> {
           color: context.loveColor,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: context.surfaceColor, width: 2),
-),
+        ),
         child: const Icon(
           Icons.add_rounded,
           color: Colors.white,

@@ -1,32 +1,16 @@
-# React + TypeScript + Vite
+# Panel de administración de RDReporta
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Ejecuta desde admin/:
 
-Currently, two official plugins are available:
+    npm ci
+    npm run dev
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+La API debe estar encendida. Consulta .env.example para configurar su dirección.
 
-## React Compiler
+Para generar el panel de producción:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+    npm run build
 
-## Expanding the Oxlint configuration
+npm run preview sirve la compilación local para revisarla. La entrada es src/main.tsx y los estilos globales están en src/index.css.
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
-
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Consulta el README principal y CONFIGURACION_SERVICIOS.md para la configuración completa.

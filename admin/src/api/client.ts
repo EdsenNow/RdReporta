@@ -5,7 +5,7 @@ export interface PostItem {
   categoryName: string; categoryColor: string; title: string; description: string;
   latitude: number; longitude: number; province: string; municipality: string;
   status: PostStatus; viewsCount: number; reactionsCount: number;
-  confirmationsCount: number; images: string[]; createdAt: string;
+  images: string[]; createdAt: string;
 }
 export interface ModerationReportItem {
   id: string; postId: string; postTitle: string; reporterUsername: string;
@@ -17,7 +17,7 @@ export interface CategoryItem {
 }
 export interface Stats {
   totalPosts: number; activePosts: number; resolvedPosts: number;
-  totalConfirmations: number; totalReactions: number; pendingReports: number;
+  totalViews: number; totalReactions: number; pendingReports: number;
 }
 export interface UserItem {
   id: string; displayName: string; username: string; email: string;

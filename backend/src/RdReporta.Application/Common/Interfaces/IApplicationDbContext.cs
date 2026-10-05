@@ -11,12 +11,13 @@ public interface IApplicationDbContext
     DbSet<Category> Categories { get; }
     DbSet<Post> Posts { get; }
     DbSet<PostImage> PostImages { get; }
+    DbSet<PostView> PostViews { get; }
     DbSet<PostReaction> PostReactions { get; }
-    DbSet<PostConfirmation> PostConfirmations { get; }
     DbSet<ModerationReport> ModerationReports { get; }
     DbSet<UserFollow> UserFollows { get; }
     DbSet<UserNotification> UserNotifications { get; }
     DbSet<DeviceRegistration> DeviceRegistrations { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+    Task RecordUniquePostViewAsync(Guid postId, Guid userId, CancellationToken ct = default);
 }

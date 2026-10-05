@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/networking/api_client.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/widgets/rdreporta_logo.dart';
 import '../auth/login_screen.dart';
 import '../home/home_screen.dart';
 
@@ -24,7 +25,7 @@ class _SplashScreenState extends State<SplashScreen> {
     // Breve pausa para mostrar el logo y diseño patrio
     await Future.delayed(const Duration(milliseconds: 900));
 
-    final loggedIn = await _apiClient.isLoggedIn();
+    final loggedIn = await _apiClient.restoreSession();
 
     if (mounted) {
       if (loggedIn) {
@@ -50,33 +51,7 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 90,
-              height: 90,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    theme.colorScheme.secondary, // Pine
-                    theme.colorScheme.primary,   // Love
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: context.borderColor, width: 2),
-              ),
-              child: const Center(
-                child: Text(
-                  'RD',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 40,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 2,
-                  ),
-                ),
-              ),
-            ),
+            const RdReportaLogo(size: 132),
             const SizedBox(height: 24),
             Text(
               'RDReporta',
@@ -97,7 +72,8 @@ class _SplashScreenState extends State<SplashScreen> {
             ),
             const SizedBox(height: 48),
             CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+              valueColor:
+                  AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
               strokeWidth: 2.5,
             ),
           ],

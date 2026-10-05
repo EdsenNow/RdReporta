@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'legal_document_screen.dart';
 import '../../core/networking/api_client.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/widgets/atmospheric_background.dart';
+import '../../shared/widgets/rdreporta_logo.dart';
 import '../home/home_screen.dart';
 import '../../core/constants/provinces.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -42,7 +45,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   bool _obscureRegPassword = true;
   bool _obscureRegConfirm = true;
-  bool _rememberMe = true;
   bool _isLoading = false;
   bool _recoverySubmitted = false;
 
@@ -78,7 +80,6 @@ class _LoginScreenState extends State<LoginScreen> {
     final res = await _apiClient.login(
       _emailController.text.trim(),
       _passwordController.text,
-      remember: _rememberMe,
     );
 
     if (!mounted) return;
@@ -106,7 +107,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     final res = await _apiClient.register(
-      username: _regUsernameController.text.trim(),
+      username: _regUsernameController.text.trim().toLowerCase(),
       email: _regEmailController.text.trim(),
       password: _regPasswordController.text,
       province: _selectedProvince,
@@ -144,38 +145,70 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleGoogleLogin() async {
     setState(() => _isLoading = true);
     try {
-      const serverClientId = String.fromEnvironment('GOOGLE_SERVER_CLIENT_ID');
+      const serverClientId = String.fromEnvironment(
+        'GOOGLE_SERVER_CLIENT_ID',
+        defaultValue:
+            '671856962338-8b4p54rt9jtlecmci1v6khr5ahfp9gsf.apps.googleusercontent.com',
+      );
       await GoogleSignIn.instance.initialize(
-        serverClientId: serverClientId.isEmpty ? null : serverClientId,
+        serverClientId: serverClientId,
       );
       final account = await GoogleSignIn.instance.authenticate();
       final token = account.authentication.idToken;
-      if (token == null) throw Exception('Google no entregó un token de identidad.');
-      final ok = await _apiClient.loginWithGoogle(token);
+      if (token == null) {
+        throw Exception('Google no entregó un token de identidad.');
+      }
+      await _apiClient.loginWithGoogle(token);
       if (!mounted) return;
-      if (!ok) throw Exception('La API no pudo validar la cuenta de Google.');
-      Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const HomeScreen()), (_) => false);
+      Navigator.pushAndRemoveUntil(context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()), (_) => false);
     } catch (e) {
-      if (mounted) _showSnackbar(e.toString().replaceFirst('Exception: ', ''), isError: true);
+      if (mounted) {
+        _showSnackbar(e.toString().replaceFirst('Exception: ', ''),
+            isError: true);
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _handleAppleLogin() async {
+    if (defaultTargetPlatform != TargetPlatform.iOS &&
+        defaultTargetPlatform != TargetPlatform.macOS) {
+      _showSnackbar(
+          'El inicio de sesión con Apple está disponible en dispositivos iOS.',
+          isError: true);
+      return;
+    }
     setState(() => _isLoading = true);
     try {
       final credential = await SignInWithApple.getAppleIDCredential(
-        scopes: [AppleIDAuthorizationScopes.email, AppleIDAuthorizationScopes.fullName],
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName
+        ],
       );
       final token = credential.identityToken;
-      if (token == null) throw Exception('Apple no entregó un token de identidad.');
-      final ok = await _apiClient.loginWithApple(token);
+      if (token == null) {
+        throw Exception('Apple no entregó un token de identidad.');
+      }
+      final fullName = [credential.givenName, credential.familyName]
+          .where((s) => s != null && s.trim().isNotEmpty)
+          .join(' ')
+          .trim();
+      final ok = await _apiClient.loginWithApple(
+        token,
+        fullName: fullName.isNotEmpty ? fullName : null,
+      );
       if (!mounted) return;
       if (!ok) throw Exception('La API no pudo validar la cuenta de Apple.');
-      Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const HomeScreen()), (_) => false);
+      Navigator.pushAndRemoveUntil(context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()), (_) => false);
     } catch (e) {
-      if (mounted) _showSnackbar(e.toString().replaceFirst('Exception: ', ''), isError: true);
+      if (mounted) {
+        _showSnackbar(e.toString().replaceFirst('Exception: ', ''),
+            isError: true);
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -183,9 +216,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _submitReset() async {
     if (_resetTokenController.text.trim().isEmpty ||
-        _resetPasswordController.text.length < 8) {
+        !_isStrongPassword(_resetPasswordController.text)) {
       _showSnackbar(
-          'Ingresa el código y una contraseña de al menos 8 caracteres.',
+          'Usa 8 caracteres o más, con mayúscula, minúscula y número.',
           isError: true);
       return;
     }
@@ -204,6 +237,13 @@ class _LoginScreenState extends State<LoginScreen> {
         _currentView = AuthView.emailLogin;
       });
     }
+  }
+
+  bool _isStrongPassword(String value) {
+    return value.length >= 8 &&
+        RegExp(r'[a-z]').hasMatch(value) &&
+        RegExp(r'[A-Z]').hasMatch(value) &&
+        RegExp(r'\d').hasMatch(value);
   }
 
   void _showSnackbar(String message, {required bool isError}) {
@@ -262,6 +302,14 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  void _openLegalDocument(LegalDocument document) {
+    Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => LegalDocumentScreen(document: document),
+        ));
+  }
+
   Widget _buildCurrentView() {
     switch (_currentView) {
       case AuthView.options:
@@ -287,27 +335,7 @@ class _LoginScreenState extends State<LoginScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // Logo de la App
-        Center(
-          child: Container(
-            width: 70,
-            height: 70,
-            decoration: BoxDecoration(
-              color: context.loveColor,
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: const Center(
-              child: Text(
-                'RD',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 32,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.2,
-                ),
-              ),
-            ),
-          ),
-        ),
+        const Center(child: RdReportaLogo(size: 104)),
         const SizedBox(height: 18),
 
         // Título "Bienvenido"
@@ -367,41 +395,44 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 12),
+        if (defaultTargetPlatform == TargetPlatform.iOS ||
+            defaultTargetPlatform == TargetPlatform.macOS) ...[
+          const SizedBox(height: 12),
 
-        // Botón: Continuar con Apple
-        SizedBox(
-          height: 50,
-          child: ElevatedButton(
-            onPressed: _isLoading ? null : _handleAppleLogin,
-            style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  isDark ? const Color(0xFF151320) : const Color(0xFF1F1D2E),
-              elevation: 0,
-              side: BorderSide.none,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(Icons.apple, color: Colors.white, size: 22),
-                SizedBox(width: 8),
-                Flexible(
-                    child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          'Continuar con Apple',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ))),
-              ],
+          // Botón: Continuar con Apple
+          SizedBox(
+            height: 50,
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _handleAppleLogin,
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    isDark ? const Color(0xFF151320) : const Color(0xFF1F1D2E),
+                elevation: 0,
+                side: BorderSide.none,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(Icons.apple, color: Colors.white, size: 22),
+                  SizedBox(width: 8),
+                  Flexible(
+                      child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            'Continuar con Apple',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ))),
+                ],
+              ),
             ),
           ),
-        ),
+        ],
         const SizedBox(height: 18),
 
         // Separador "o"
@@ -439,30 +470,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 16),
-
-        // Continuar como invitado
-        Center(
-          child: TextButton.icon(
-            onPressed: () {
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const HomeScreen()),
-                (route) => false,
-              );
-            },
-            icon:
-                Icon(Icons.person_outline, size: 18, color: context.mutedColor),
-            label: Text(
-              'Continuar como invitado',
-              style: TextStyle(
-                  color: context.subtleColor,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600),
-            ),
-          ),
-        ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
 
         // Footer: ¿No tienes cuenta? Regístrate
         Wrap(
@@ -488,11 +496,20 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         const SizedBox(height: 14),
 
-        // Footer Legal
-        Text(
-          'Política de privacidad · Condiciones del servicio',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 11, color: context.mutedColor),
+        const Text('Al continuar o iniciar sesión, consulta nuestros',
+            textAlign: TextAlign.center, style: TextStyle(fontSize: 11)),
+        Wrap(
+          alignment: WrapAlignment.center,
+          children: [
+            TextButton(
+              onPressed: () => _openLegalDocument(LegalDocument.terms),
+              child: const Text('Términos y condiciones'),
+            ),
+            TextButton(
+              onPressed: () => _openLegalDocument(LegalDocument.privacy),
+              child: const Text('Política de privacidad'),
+            ),
+          ],
         ),
       ],
     );
@@ -567,7 +584,9 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             validator: (val) {
               if (val == null || val.isEmpty) return 'Ingresa tu contraseña';
-              if (val.length < 6) return 'Mínimo 6 caracteres';
+              if (!_isStrongPassword(val)) {
+                return '8+ caracteres, mayúscula, minúscula y número';
+              }
               return null;
             },
           ),
@@ -592,28 +611,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           const SizedBox(height: 8),
 
-          // Recordar sesión
-          Row(
-            children: [
-              SizedBox(
-                width: 24,
-                height: 24,
-                child: Checkbox(
-                  value: _rememberMe,
-                  activeColor: context.loveColor,
-                  checkColor: Colors.white,
-                  side: BorderSide(color: context.borderColor, width: 2),
-                  onChanged: (val) => setState(() => _rememberMe = val ?? true),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Recordar sesión',
-                style: TextStyle(color: context.subtleColor, fontSize: 13),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
 
           // Botón para iniciar sesión.
           SizedBox(
@@ -918,9 +916,20 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 22),
                   TextField(
-                      controller: _resetTokenController,
-                      decoration: const InputDecoration(
-                          labelText: 'Código de recuperación')),
+                    controller: _resetTokenController,
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 6,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Código de 6 dígitos',
+                      hintText: '123456',
+                      floatingLabelAlignment: FloatingLabelAlignment.center,
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   TextField(
                       controller: _resetPasswordController,
@@ -928,19 +937,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       maxLength: 72,
                       decoration:
                           const InputDecoration(labelText: 'Nueva contraseña')),
-                  const SizedBox(height: 12),
-                  FilledButton(
-                      onPressed: _isLoading ? null : _submitReset,
-                      child: Text(
-                          _isLoading ? 'Guardando…' : 'Cambiar contraseña')),
+                  const SizedBox(height: 20),
                   SizedBox(
-                    height: 48,
+                    height: 50,
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () => setState(() {
-                        _recoverySubmitted = false;
-                        _currentView = AuthView.emailLogin;
-                      }),
+                      onPressed: _isLoading ? null : _submitReset,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: context.loveColor,
                         foregroundColor: Colors.white,
@@ -948,7 +950,32 @@ class _LoginScreenState extends State<LoginScreen> {
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: const Text('Volver a iniciar sesión'),
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2.5, color: Colors.white),
+                            )
+                          : const Text(
+                              'Cambiar contraseña',
+                              style: TextStyle(
+                                  fontSize: 15, fontWeight: FontWeight.bold),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextButton.icon(
+                    onPressed: () => setState(() {
+                      _recoverySubmitted = false;
+                      _currentView = AuthView.emailLogin;
+                    }),
+                    icon: Icon(Icons.arrow_back,
+                        size: 18, color: context.mutedColor),
+                    label: Text(
+                      'Volver a iniciar sesión',
+                      style: TextStyle(
+                          color: context.subtleColor, fontSize: 13),
                     ),
                   ),
                 ],
@@ -1059,7 +1086,8 @@ class _LoginScreenState extends State<LoginScreen> {
       width: 22,
       height: 22,
       padding: const EdgeInsets.all(3),
-      decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+      decoration:
+          const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
       child: Image.asset('assets/branding/google_g.png', fit: BoxFit.contain),
     );
   }

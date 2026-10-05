@@ -40,16 +40,17 @@ void main() {
     expect(await storage.read(key: 'refresh_token'), 'refresh-new');
   });
 
-  test('remember disabled keeps the session only in memory', () async {
+  test('session remains available after recreating the client', () async {
     final client = ApiClient.forTesting(
         FakeAdapter((_) => jsonResponse(200, session('temporary'))));
-    await client.login('a@b.do', 'password', remember: false);
+    await client.login('a@b.do', 'password');
     expect(await client.isLoggedIn(), true);
-    expect(await const FlutterSecureStorage().read(key: 'jwt_token'), isNull);
+    expect(
+        await const FlutterSecureStorage().read(key: 'jwt_token'), 'temporary');
     expect(
         await ApiClient.forTesting(FakeAdapter((_) => jsonResponse(200, {})))
             .isLoggedIn(),
-        false);
+        true);
   });
 
   test('concurrent expired requests share one refresh and retry with new token',
@@ -118,15 +119,13 @@ void main() {
         await const FlutterSecureStorage().read(key: 'refresh_token'), isNull);
   });
 
-  test('profile reads the actual API confirmation and membership fields', () {
+  test('profile reads the membership field', () {
     final user = UserModel.fromJson({
       'id': 'id',
       'username': 'ciudadano',
       'email': 'a@b.do',
-      'totalConfirmationsReceived': 17,
       'memberSince': '2025-03-01T12:00:00Z'
     });
-    expect(user.totalConfirmations, 17);
     expect(user.createdAt, DateTime.utc(2025, 3, 1, 12));
   });
 

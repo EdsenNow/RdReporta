@@ -25,20 +25,24 @@ public class PasswordHasher : IPasswordHasher
 public class JwtTokenService : IJwtTokenService
 {
     private readonly IConfiguration _configuration;
+    private readonly string _secretKey;
 
     public JwtTokenService(IConfiguration configuration)
     {
         _configuration = configuration;
+        _secretKey = configuration["Jwt:SecretKey"]
+            ?? throw new InvalidOperationException("Jwt:SecretKey no está configurada.");
+        if (Encoding.UTF8.GetByteCount(_secretKey) < 32)
+            throw new InvalidOperationException("Jwt:SecretKey debe contener al menos 32 bytes.");
     }
 
     public string GenerateAccessToken(User user, IEnumerable<string> roles)
     {
-        var secretKey = _configuration["Jwt:SecretKey"] ?? "RDReporta_UltraSecure_SuperSecretKey_2026_DevOnly!@#";
         var issuer = _configuration["Jwt:Issuer"] ?? "RDReportaApi";
         var audience = _configuration["Jwt:Audience"] ?? "RDReportaApp";
         var expiryHours = int.TryParse(_configuration["Jwt:ExpiryInHours"], out var hours) ? hours : 2;
 
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var claims = new List<Claim>
@@ -79,8 +83,6 @@ public class JwtTokenService : IJwtTokenService
 
     public ClaimsPrincipal? GetPrincipalFromExpiredToken(string token)
     {
-        var secretKey = _configuration["Jwt:SecretKey"] ?? "RDReporta_UltraSecure_SuperSecretKey_2026_DevOnly!@#";
-
         var tokenValidationParameters = new TokenValidationParameters
         {
             ValidateAudience = true,
@@ -88,7 +90,7 @@ public class JwtTokenService : IJwtTokenService
             ValidateIssuer = true,
             ValidIssuer = _configuration["Jwt:Issuer"] ?? "RDReportaApi",
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey)),
             ValidateLifetime = false // Here we don't care about lifetime because we want to validate expired token to refresh it
         };
 

@@ -12,7 +12,7 @@ public class LocalStorageService : IStorageService
         _environment = environment;
     }
 
-    public async Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType, CancellationToken cancellationToken = default)
+    public async Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType, Guid ownerUserId, CancellationToken cancellationToken = default)
     {
         var webRoot = _environment.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
         var uploadsFolder = Path.Combine(webRoot, "uploads");
@@ -22,7 +22,7 @@ public class LocalStorageService : IStorageService
             Directory.CreateDirectory(uploadsFolder);
         }
 
-        var uniqueName = $"{Guid.NewGuid()}{Path.GetExtension(fileName).ToLowerInvariant()}";
+        var uniqueName = $"{ownerUserId:N}_{Guid.NewGuid():N}{Path.GetExtension(fileName).ToLowerInvariant()}";
         var filePath = Path.Combine(uploadsFolder, uniqueName);
 
         using (var output = new FileStream(filePath, FileMode.Create))

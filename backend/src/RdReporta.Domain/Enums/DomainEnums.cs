@@ -20,7 +20,12 @@ public enum ReactionType
     MeInteresa = 1,
     Importante = 2,
     Impactante = 3,
-    EstoyAqui = 4
+    EstoyAqui = 4,
+    MeGusta = 5,
+    Corazon = 6,
+    ConLagrima = 7,
+    Enojo = 8,
+    Sorpresa = 9
 }
 
 public enum ModerationReason

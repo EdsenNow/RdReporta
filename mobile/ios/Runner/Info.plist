@@ -72,5 +72,7 @@
 	<string>RDReporta necesita acceso a tu galería para adjuntar fotos de evidencias a tus reportes.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>RDReporta necesita tu ubicación para geolocalizar incidencias cercanas en República Dominicana.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>RDReporta necesita acceso al micrófono para grabar videos con audio en tus reportes ciudadanos.</string>
 </dict>
 </plist>

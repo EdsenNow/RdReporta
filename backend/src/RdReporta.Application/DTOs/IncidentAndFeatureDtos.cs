@@ -26,13 +26,14 @@ public record CreatePostRequest(
     [Required] int CategoryId,
     [Required, MaxLength(150)] string Title,
     [Required, MaxLength(5000)] string Description,
-    [Range(-90, 90)] double Latitude,
-    [Range(-180, 180)] double Longitude,
     [Required, MaxLength(100)] string Province,
     [Required, MaxLength(100)] string Municipality,
     [MaxLength(100)] string? Neighborhood,
     [MaxLength(255)] string? AddressReference,
-    [MaxLength(4)] List<string>? ImageUrls
+    [MaxLength(4)] List<string>? ImageUrls,
+    [MaxLength(1000)] string? VideoUrl = null,
+    [Range(-90, 90)] double? Latitude = null,
+    [Range(-180, 180)] double? Longitude = null
 );
 
 public record PostDto(
@@ -41,14 +42,15 @@ public record PostDto(
     string AuthorUsername,
     string? AuthorAvatarUrl,
     ReputationLevel AuthorReputation,
+    bool AuthorIsVerified,
     int CategoryId,
     string CategoryName,
     string CategoryIcon,
     string CategoryColor,
     string Title,
     string Description,
-    double Latitude,
-    double Longitude,
+    double? Latitude,
+    double? Longitude,
     string Province,
     string Municipality,
     string? Neighborhood,
@@ -56,16 +58,18 @@ public record PostDto(
     PostStatus Status,
     int ViewsCount,
     int ReactionsCount,
-    int ConfirmationsCount,
     List<string> Images,
+    string? VideoUrl,
     DateTime CreatedAt,
     double? DistanceInMeters = null,
-    bool UserHasConfirmed = false,
-    ReactionType? UserReaction = null
+    ReactionType? UserReaction = null,
+    string? AuthorDisplayName = null,
+    Dictionary<string, int>? ReactionCounts = null
 );
 
 public record PostMapPinDto(
     Guid Id,
+    Guid UserId,
     double Latitude,
     double Longitude,
     int CategoryId,
@@ -73,8 +77,13 @@ public record PostMapPinDto(
     string CategoryColor,
     string Title,
     string? ThumbnailUrl,
-    int ConfirmationsCount,
-    DateTime CreatedAt
+    string Province,
+    string Municipality,
+    string? Neighborhood,
+    string? AddressReference,
+    DateTime CreatedAt,
+    List<string>? Images = null,
+    string? VideoUrl = null
 );
 
 public record NearbyPostsRequest(
@@ -88,11 +97,6 @@ public record NearbyPostsRequest(
 
 public record PostReactionRequest(
     [EnumDataType(typeof(ReactionType))] ReactionType ReactionType
-);
-
-public record PostConfirmationRequest(
-    [Range(-90, 90)] double? Latitude,
-    [Range(-180, 180)] double? Longitude
 );
 
 public record CreateModerationReportRequest(

@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import '../../core/networking/api_client.dart';
 import '../../shared/models/models.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/constants/provinces.dart';
+import '../../core/constants/api_constants.dart';
+import 'package:image_picker/image_picker.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final UserModel user;
@@ -15,18 +18,62 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late final _displayName =
       TextEditingController(text: widget.user.displayName);
   late final _username = TextEditingController(text: widget.user.username);
-  late final _province = TextEditingController(text: widget.user.province);
-  late final _municipality =
-      TextEditingController(text: widget.user.municipality);
+  late String? _province;
   bool _saving = false;
+  bool _avatarBusy = false;
+  late String? _avatarUrlValue = widget.user.avatarUrl;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _province = dominicanProvinces.contains(widget.user.province)
+        ? widget.user.province
+        : null;
+  }
+
   @override
   void dispose() {
     _displayName.dispose();
     _username.dispose();
-    _province.dispose();
-    _municipality.dispose();
     super.dispose();
+  }
+
+  String _avatarUrl(String value) {
+    final uri = Uri.tryParse(value);
+    if (uri != null && uri.hasScheme) return value;
+    return '${ApiConstants.hostUrl}/${value.replaceFirst(RegExp(r'^/'), '')}';
+  }
+
+  Future<void> _changeAvatar() async {
+    if (_avatarBusy) return;
+    final image = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 82,
+      maxWidth: 1200,
+      maxHeight: 1200,
+    );
+    if (image == null || !mounted) return;
+    setState(() => _avatarBusy = true);
+    try {
+      final url = await ApiClient().uploadImage(image.path);
+      if (url == null) throw Exception('No se pudo subir la imagen.');
+      await ApiClient().updateProfile(avatarUrl: url);
+      if (mounted) setState(() => _avatarUrlValue = url);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Foto de perfil actualizada.')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(ApiClient.errorMessage(error))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _avatarBusy = false);
+    }
   }
 
   Future<void> _save() async {
@@ -38,9 +85,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     try {
       await ApiClient().updateProfile(
           displayName: _displayName.text.trim(),
-          username: _username.text.trim(),
-          province: _province.text.trim(),
-          municipality: _municipality.text.trim());
+          username: _username.text.trim().toLowerCase(),
+          province: _province!,
+          municipality: '');
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) setState(() => _error = ApiClient.errorMessage(e));
@@ -49,21 +96,228 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
+  Future<void> _selectProvince(FormFieldState<String> field) async {
+    final searchController = TextEditingController();
+    var query = '';
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          final provinces = dominicanProvinces
+              .where((province) =>
+                  province.toLowerCase().contains(query.trim().toLowerCase()))
+              .toList();
+
+          return SafeArea(
+            child: FractionallySizedBox(
+              heightFactor: 0.72,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: context.surfaceColor,
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(26)),
+                  border: Border.all(color: context.borderColor, width: 1.5),
+                ),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 10),
+                    Container(
+                      width: 38,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: context.mutedColor.withValues(alpha: 0.55),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Elige tu provincia',
+                                    style: TextStyle(
+                                      color: context.textPrimaryColor,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                    )),
+                                const SizedBox(height: 3),
+                                Text('República Dominicana',
+                                    style: TextStyle(
+                                        color: context.subtleColor,
+                                        fontSize: 12)),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Cerrar',
+                            onPressed: () => Navigator.pop(sheetContext),
+                            icon: Icon(Icons.close_rounded,
+                                color: context.mutedColor),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: TextField(
+                        controller: searchController,
+                        onChanged: (value) => setSheetState(() => query = value),
+                        decoration: InputDecoration(
+                          hintText: 'Buscar provincia',
+                          prefixIcon: const Icon(Icons.search_rounded),
+                          filled: true,
+                          fillColor: context.overlayColor,
+                          contentPadding:
+                              const EdgeInsets.symmetric(vertical: 12),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(color: context.borderColor),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(color: context.borderColor),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Expanded(
+                      child: provinces.isEmpty
+                          ? Center(
+                              child: Text('No se encontraron provincias',
+                                  style: TextStyle(
+                                      color: context.subtleColor)))
+                          : ListView.separated(
+                              padding: const EdgeInsets.fromLTRB(14, 2, 14, 16),
+                              itemCount: provinces.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 4),
+                              itemBuilder: (context, index) {
+                                final province = provinces[index];
+                                final isSelected = province == _province;
+                                return Material(
+                                  color: isSelected
+                                      ? context.loveColor.withValues(alpha: 0.12)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(14),
+                                    onTap: () => Navigator.pop(sheetContext, province),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 14, vertical: 12),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(province,
+                                                style: TextStyle(
+                                                  color: context.textPrimaryColor,
+                                                  fontWeight: isSelected
+                                                      ? FontWeight.w700
+                                                      : FontWeight.w500,
+                                                )),
+                                          ),
+                                          if (isSelected)
+                                            Icon(Icons.check_circle_rounded,
+                                                color: context.loveColor,
+                                                size: 20),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+    searchController.dispose();
+    if (selected != null) {
+      setState(() => _province = selected);
+      field.didChange(selected);
+    }
+  }
+
+  Widget _buildProvinceField() => FormField<String>(
+        initialValue: _province,
+        validator: (value) => value == null ? 'Selecciona una provincia' : null,
+        builder: (field) => InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => _selectProvince(field),
+          child: InputDecorator(
+            isEmpty: false,
+            decoration: InputDecoration(
+              labelText: 'Provincia',
+              errorText: field.errorText,
+              prefixIcon: const Icon(Icons.location_on_outlined),
+              suffixIcon: const Icon(Icons.expand_more_rounded),
+            ),
+            child: Text(
+              _province ?? 'Selecciona tu provincia',
+              style: TextStyle(
+                color: _province == null
+                    ? context.subtleColor
+                    : context.textPrimaryColor,
+              ),
+            ),
+          ),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: const Text('Editar mi perfil')),
         body: Form(
             key: _form,
             child: ListView(padding: const EdgeInsets.all(24), children: [
-              CircleAvatar(
-                  radius: 36,
-                  backgroundColor: context.isDarkMode
-                      ? context.overlayColor
-                      : const Color(0xFFFFFAF3),
-                  child: Text(
-                      widget.user.username.substring(0, 1).toUpperCase(),
-                      style: TextStyle(
-                          fontSize: 28, color: context.loveColor))),
+              Center(
+                child: GestureDetector(
+                  onTap: _avatarBusy ? null : _changeAvatar,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      CircleAvatar(
+                        radius: 36,
+                        backgroundColor: context.isDarkMode
+                            ? context.overlayColor
+                            : const Color(0xFFFFFAF3),
+                        backgroundImage: _avatarUrlValue?.isNotEmpty == true
+                            ? NetworkImage(_avatarUrl(_avatarUrlValue!))
+                            : null,
+                        child: _avatarBusy
+                            ? CircularProgressIndicator(color: context.loveColor)
+                            : _avatarUrlValue?.isNotEmpty == true
+                                ? null
+                                : Text(
+                                    widget.user.username.isNotEmpty
+                                        ? widget.user.username[0].toUpperCase()
+                                        : 'U',
+                                    style: TextStyle(fontSize: 28, color: context.loveColor)),
+                      ),
+                      Positioned(
+                        right: -4,
+                        bottom: 0,
+                        child: CircleAvatar(
+                          radius: 13,
+                          backgroundColor: context.loveColor,
+                          child: const Icon(Icons.photo_camera_rounded, size: 14, color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               const SizedBox(height: 16),
               Text(widget.user.displayName,
                   textAlign: TextAlign.center,
@@ -110,17 +364,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     return null;
                   }),
               const SizedBox(height: 16),
-              TextFormField(
-                  controller: _province,
-                  maxLength: 100,
-                  decoration: const InputDecoration(labelText: 'Provincia'),
-                  validator: _required),
-              const SizedBox(height: 16),
-              TextFormField(
-                  controller: _municipality,
-                  maxLength: 100,
-                  decoration: const InputDecoration(labelText: 'Municipio'),
-                  validator: _required),
+              _buildProvinceField(),
               if (_error != null)
                 Padding(
                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -133,9 +377,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   child: Text(_saving ? 'Guardando…' : 'Guardar cambios')),
             ])),
       );
-  String? _required(String? text) =>
-      text == null || text.trim().isEmpty ? 'Completa este campo' : null;
-
   bool get _canChangeUsername {
     final date = widget.user.usernameCanChangeAt;
     return date == null || !date.isAfter(DateTime.now().toUtc());

@@ -50,7 +50,7 @@ async function fill(selector, value) {
 }
 const fixture = `(() => {
   const categories = [{id: 1, name: 'Vías públicas', slug: 'vias', description: 'Daños en calles y vías.', iconName: 'road', colorHex: '#31748F', displayOrder: 1}];
-  const post = {id: 'post-1', userId: 'user-1', authorUsername: 'vecino', categoryId: 1, categoryName: 'Vías públicas', categoryColor: '#31748F', title: 'Bache en la avenida principal', description: 'Incidencia de prueba para revisar el panel.', province: 'Distrito Nacional', municipality: 'Santo Domingo', latitude: 18.48, longitude: -69.93, status: 'Active', viewsCount: 12, reactionsCount: 3, confirmationsCount: 5, images: [], createdAt: '2026-09-28T12:00:00Z'};
+  const post = {id: 'post-1', userId: 'user-1', authorUsername: 'vecino', categoryId: 1, categoryName: 'Vías públicas', categoryColor: '#31748F', title: 'Bache en la avenida principal', description: 'Incidencia de prueba para revisar el panel.', province: 'Distrito Nacional', municipality: 'Santo Domingo', latitude: 18.48, longitude: -69.93, status: 'Active', viewsCount: 12, reactionsCount: 3, images: [], createdAt: '2026-09-28T12:00:00Z'};
   let reports = [{id: 'report-1', postId: post.id, postTitle: post.title, reporterUsername: 'ciudadano', reason: 'UbicacionIncorrecta', description: 'Revisar la referencia.', status: 'Pending', createdAt: post.createdAt}];
   window.__calls = [];
   window.fetch = async (url, options = {}) => {
@@ -59,7 +59,7 @@ const fixture = `(() => {
     let result;
     if (route === '/api/auth/login') result = {username: 'Moderación RD', email: 'admin@example.test', roles: ['Administrador'], accessToken: 'fixture-access', refreshToken: 'fixture-refresh'};
     else if (route === '/api/auth/logout') result = true;
-    else if (route === '/api/management/stats') result = {totalPosts: 148, activePosts: 92, resolvedPosts: 56, totalConfirmations: 624, totalReactions: 301, pendingReports: reports.length};
+    else if (route === '/api/management/stats') result = {totalPosts: 148, activePosts: 92, resolvedPosts: 56, totalViews: 624, totalReactions: 301, pendingReports: reports.length};
     else if (route === '/api/management/posts') result = {items: [post], totalCount: 1, pageNumber: 1, pageSize: 20};
     else if (route === '/api/management/posts/post-1') result = post;
     else if (route === '/api/management/posts/post-1/status') { post.status = data.status; result = true; }

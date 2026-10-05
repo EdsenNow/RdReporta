@@ -7,6 +7,8 @@ using RdReporta.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using RdReporta.Application.Common.Models;
+using RdReporta.Infrastructure.Security;
+using RdReporta.Api.Services;
 
 namespace RdReporta.Api.Controllers;
 
@@ -60,7 +62,7 @@ public class PostsController : ControllerBase
             totalPosts = await visible.CountAsync(ct),
             activePosts = await visible.CountAsync(p => p.Status == PostStatus.Active, ct),
             resolvedPosts = await visible.CountAsync(p => p.Status == PostStatus.Resolved, ct),
-            totalConfirmations = await visible.SumAsync(p => p.ConfirmationsCount, ct)
+            totalViews = await visible.SumAsync(p => p.ViewsCount, ct)
         }});
     }
 
@@ -72,12 +74,21 @@ public class PostsController : ControllerBase
         var query = db.Posts.AsNoTracking().Where(p => p.UserId == _currentUserService.UserId);
         var total = await query.CountAsync(ct);
         var posts = await query.Include(p => p.User).Include(p => p.Category).Include(p => p.Images)
-            .Include(p => p.Reactions).Include(p => p.Confirmations)
+            .Include(p => p.Reactions)
             .OrderByDescending(p => p.CreatedAt).Skip((page - 1) * 20).Take(20).ToListAsync(ct);
         return Ok(ApiResponse<PagedResult<PostDto>>.Ok(new PagedResult<PostDto> {
             Items = posts.Select(p => RdReporta.Application.Services.PostService.MapToDto(p, p.User, p.Category, _currentUserService.UserId)).ToList(),
             TotalCount = total, PageNumber = page, PageSize = 20
         }));
+    }
+
+    [Authorize]
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> DeleteOwnPost(Guid id, CancellationToken ct)
+    {
+        if (_currentUserService.UserId == null) return Unauthorized();
+        var response = await _postService.DeletePostAsync(id, _currentUserService.UserId.Value, ct);
+        return response.Success ? Ok(response) : NotFound(response);
     }
 
     [HttpGet("nearby")]
@@ -111,24 +122,28 @@ public class PostsController : ControllerBase
     }
 
     [Authorize]
+    [HttpPost("{id:guid}/views")]
+    public async Task<IActionResult> RecordView(Guid id, [FromServices] PostViewsBroadcaster broadcaster, CancellationToken ct)
+    {
+        if (_currentUserService.UserId == null) return Unauthorized();
+        var response = await _postService.RecordViewAsync(id, _currentUserService.UserId.Value, ct);
+        if (response.Success) broadcaster.Publish(id, response.Data);
+        return response.Success ? Ok(response) : NotFound(response);
+    }
+
+    [Authorize]
     [HttpPost("{id:guid}/reactions")]
-    public async Task<IActionResult> ToggleReaction(Guid id, [FromBody] PostReactionRequest request, CancellationToken ct)
+    public async Task<IActionResult> ToggleReaction(Guid id, [FromBody] PostReactionRequest request, [FromServices] PostViewsBroadcaster broadcaster, CancellationToken ct)
     {
         if (_currentUserService.UserId == null) return Unauthorized();
         var response = await _postService.ToggleReactionAsync(id, request.ReactionType, _currentUserService.UserId.Value, ct);
         if (!response.Success) return BadRequest(response);
-        return Ok(response);
+        var view = await _postService.RecordViewAsync(id, _currentUserService.UserId.Value, ct);
+        if (view.Success) broadcaster.Publish(id, view.Data);
+        return Ok(new { response.Success, response.Data, response.Message,
+            ViewsCount = view.Success ? (int?)view.Data : null });
     }
 
-    [Authorize]
-    [HttpPost("{id:guid}/confirm")]
-    public async Task<IActionResult> ConfirmPost(Guid id, [FromBody] PostConfirmationRequest request, CancellationToken ct)
-    {
-        if (_currentUserService.UserId == null) return Unauthorized();
-        var response = await _postService.ConfirmPostAsync(id, request, _currentUserService.UserId.Value, ct);
-        if (!response.Success) return BadRequest(response);
-        return Ok(response);
-    }
 }
 
 [ApiController]
@@ -206,10 +221,12 @@ public class ModerationController : ControllerBase
 public class UploadsController : ControllerBase
 {
     private readonly IStorageService _storageService;
+    private readonly ICurrentUserService _currentUserService;
 
-    public UploadsController(IStorageService storageService)
+    public UploadsController(IStorageService storageService, ICurrentUserService currentUserService)
     {
         _storageService = storageService;
+        _currentUserService = currentUserService;
     }
 
     [Authorize]
@@ -218,6 +235,7 @@ public class UploadsController : ControllerBase
     [RequestSizeLimit(11 * 1024 * 1024)]
     public async Task<IActionResult> UploadImage(IFormFile file, CancellationToken ct)
     {
+        if (_currentUserService.UserId is not Guid userId) return Unauthorized();
         if (file == null || file.Length == 0)
         {
             return BadRequest(new { success = false, message = "Debe proporcionar una imagen válida." });
@@ -246,7 +264,69 @@ public class UploadsController : ControllerBase
         });
         if (!valid) return BadRequest(new { success = false, message = "El archivo no corresponde al formato de imagen indicado." });
         stream.Position = 0;
-        var url = await _storageService.UploadFileAsync(stream, file.FileName, file.ContentType, ct);
+        MemoryStream sanitized;
+        try
+        {
+            sanitized = await ImageSecurityHelper.RemoveMetadataAsync(stream, ext, ct);
+        }
+        catch (InvalidDataException)
+        {
+            return BadRequest(new { success = false, message = "La estructura de la imagen no es válida." });
+        }
+        await using (sanitized)
+        {
+            var url = await _storageService.UploadFileAsync(
+                sanitized, file.FileName, file.ContentType, userId, ct);
+            return Ok(new { success = true, url });
+        }
+    }
+
+    [Authorize]
+    [HttpPost("video")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(150 * 1024 * 1024)]
+    public async Task<IActionResult> UploadVideo(IFormFile file, CancellationToken ct)
+    {
+        if (_currentUserService.UserId is not Guid userId) return Unauthorized();
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest(new { success = false, message = "Debe proporcionar un video válido." });
+        }
+
+        if (file.Length > 150 * 1024 * 1024) // 150MB limit
+        {
+            return BadRequest(new { success = false, message = "El tamaño del video no puede superar 150 MB." });
+        }
+
+        var allowedExtensions = new[] { ".mp4", ".mov", ".m4v", ".webm", ".3gp", ".mkv" };
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (!allowedExtensions.Contains(ext))
+        {
+            return BadRequest(new { success = false, message = "Formato de video no permitido (.mp4, .mov, .m4v, .webm, .3gp, .mkv)." });
+        }
+
+        using var stream = file.OpenReadStream();
+        var header = new byte[16];
+        var read = await stream.ReadAsync(header, ct);
+        var isMp4Family = read >= 12 && System.Text.Encoding.ASCII.GetString(header, 4, 4) == "ftyp";
+        var isWebMOrMkv = read >= 4 && header.AsSpan(0, 4).SequenceEqual(new byte[] { 0x1A, 0x45, 0xDF, 0xA3 });
+        var valid = ext switch
+        {
+            ".mp4" or ".mov" or ".m4v" or ".3gp" => isMp4Family,
+            ".webm" or ".mkv" => isWebMOrMkv,
+            _ => false
+        };
+        if (!valid)
+            return BadRequest(new { success = false, message = "El archivo no corresponde al formato de video indicado." });
+
+        stream.Position = 0;
+        if (!VideoSecurityHelper.TryReadDuration(stream, ext, ct, out var duration))
+            return BadRequest(new { success = false, message = "No se pudo comprobar la duración del video." });
+        if (duration > VideoSecurityHelper.MaxDuration)
+            return BadRequest(new { success = false, message = "El video no puede superar los 3 minutos." });
+
+        stream.Position = 0;
+        var url = await _storageService.UploadFileAsync(stream, file.FileName, file.ContentType ?? "video/mp4", userId, ct);
 
         return Ok(new { success = true, url });
     }

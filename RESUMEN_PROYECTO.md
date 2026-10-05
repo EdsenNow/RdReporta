@@ -1,227 +1,175 @@
-# Documento Maestro de Arquitectura, Tecnologías y Justificación Técnica
+# Resumen técnico y estado del proyecto
 
-**Proyecto:** RDReporta  
-**Fecha de actualización:** 28 de septiembre de 2026  
-**Propósito:** Especificación integral de cada tecnología, librería, patrón de diseño y decisión de arquitectura implementada en la plataforma, con su respectiva justificación técnica del **por qué** fue seleccionada.
+**Proyecto:** RDReporta
 
----
+**Actualización:** 1 de octubre de 2026
 
-## 1. Visión General del Proyecto y Filosofía de Diseño
+**Propósito:** describir la arquitectura, las tecnologías realmente presentes y los pendientes. Este documento distingue implementación de validación; no certifica que todas las funciones estén listas para producción.
 
-**RDReporta** es una plataforma ciudadana diseñada para el reporte, seguimiento y validación comunitaria de incidencias en la vía pública (baches, fallas de alumbrado, semáforos averiados, vertederos clandestinos, fugas de agua, etc.) en toda la República Dominicana.
+## 1. Producto
 
-### 1.1 Filosofía de "Cero Toxicidad" (Anti-Social Network)
-A diferencia de las redes sociales convencionales, RDReporta implementa una arquitectura deliberadamente restrictiva:
-* **Sin comentarios abiertos:** Se elimina la posibilidad de debates agresivos, insultos, difamaciones o desinformación.
-* **Sin mensajería directa (DMs):** Protege la privacidad de los ciudadanos y evita el acoso o el spam.
-* **Confirmación Comunitaria ("Confirmo"):** La validación de que un problema existe o sigue vigente se realiza mediante un contador de confirmaciones de vecinos presenciales.
-* **Reacciones Tipadas ("Importante"):** Señalización cívica sin contadores de "me gusta" ni algoritmos de enganche basados en polarización.
-* **Moderación Administrativa Centralizada:** Denuncias atendidas por moderadores mediante un panel web con trazabilidad.
+RDReporta permite publicar y consultar incidencias ciudadanas geolocalizadas en República Dominicana. Los reportes incluyen categoría, título, descripción, fotografías, video y dirección.
 
----
+La interacción incluye reacciones, visualizaciones, seguimiento de usuarios y denuncias para moderación. No hay mensajes privados ni comentarios abiertos. Las confirmaciones ciudadanas fueron retiradas.
 
-## 2. Mapa Tecnológico Global
+La interfaz utiliza Rosé Pine para modo oscuro y Rosé Pine Dawn para modo claro. La selección de esta paleta no demuestra por sí sola cumplimiento WCAG: el contraste, los tamaños de texto y la interacción deben comprobarse en cada pantalla.
 
-```mermaid
-graph TD
-    subgraph Clientes
-        A[App Móvil: Flutter 3.x / Dart]
-        B[Panel Admin: React 19 + TypeScript + Vite]
-    end
+## 2. Arquitectura
 
-    subgraph Backend
-        C[API REST: ASP.NET Core .NET 10]
-        D[Entity Framework Core + NetTopologySuite]
-    end
+| Área | Ubicación | Responsabilidad |
+| --- | --- | --- |
+| Aplicación móvil | mobile/ | Interfaz Flutter, autenticación, ubicación, multimedia y comunicación con la API. |
+| API | backend/src/RdReporta.Api/ | Controladores, configuración, autenticación HTTP y publicación de eventos de vistas. |
+| Aplicación | backend/src/RdReporta.Application/ | Servicios, casos de uso, contratos y DTO. |
+| Dominio | backend/src/RdReporta.Domain/ | Entidades y enumeraciones. |
+| Infraestructura | backend/src/RdReporta.Infrastructure/ | Persistencia EF Core, seguridad y almacenamiento local. |
+| Panel | admin/ | Administración y moderación en React. |
+| Base de datos | database/, docker/ | Scripts, semillas de referencia y PostgreSQL/PostGIS local. |
+| Revisión | scripts/, backend/tests/, mobile/test/ | Herramientas y pruebas disponibles. |
+| Documentación | docs/ | Especificaciones e inventario de limpieza. |
 
-    subgraph Almacenamiento y Motor Geoespacial
-        E[(PostgreSQL 16 + PostGIS 3.4)]
-        F[Almacenamiento Local wwwroot/uploads]
-        G[FlutterSecureStorage: Keystore / Keychain]
-    end
+La API y ambos clientes se comunican mediante HTTP en desarrollo local y deben utilizar HTTPS en producción. La estructura del backend separa responsabilidades, pero no implica que todos los servicios sean completamente independientes de EF Core.
 
-    A -->|HTTPS / JWT Bearer| C
-    B -->|HTTPS / JWT Bearer| C
-    C --> D
-    D --> E
-    C --> F
-    A --> G
-```
+## 3. Aplicación móvil
 
----
+### Tecnologías declaradas
 
-## 3. Frontend Móvil: Flutter y Dart
+Los valores siguientes son restricciones del manifiesto, no necesariamente versiones exactas instaladas. Las resoluciones concretas están en mobile/pubspec.lock.
 
-### 3.1 Tecnologías y Librerías Utilizadas
+| Componente | Restricción | Uso |
+| --- | --- | --- |
+| Dart SDK | >=3.0.0 <4.0.0 | Restricción del lenguaje; no es una versión de Flutter. |
+| dio | ^5.7.0 | HTTP, interceptores, renovación de tokens, carga de archivos y SSE. |
+| flutter_secure_storage | ^9.2.2 | Persistencia de credenciales mediante mecanismos seguros de la plataforma. |
+| google_maps_flutter | ^2.10.0 | Mapa de incidencias. |
+| geolocator | ^13.0.1 | Ubicación y permisos. |
+| geocoding | ^5.0.0 | Conversión de coordenadas y direcciones. |
+| image_picker | ^1.1.2 | Selección y captura de medios. |
+| cached_network_image | ^3.4.1 | Presentación y caché de imágenes. |
+| intl | ^0.19.0 | Formatos de fechas y números. |
+| firebase_core | ^4.15.0 | Inicialización de Firebase. |
+| firebase_messaging | ^16.7.0 | Permisos y token del dispositivo para FCM. |
+| google_sign_in | ^7.2.0 | Cliente de acceso con Google. |
+| sign_in_with_apple | ^8.2.0 | Cliente de acceso con Apple; integración del servidor pendiente. |
+| video_player | ^2.14.0 | Reproducción de videos. |
+| visibility_detector | ^0.4.0+2 | Detección de exposición de tarjetas para impresiones. |
+| flutter_lints | ^5.0.0 | Reglas de análisis estático. |
 
-| Paquete / Tecnología | Versión | Rol en la Aplicación |
-|---|---|---|
-| **Flutter SDK** | `>=3.0.0 <4.0.0` | Framework multiplataforma de interfaz de usuario compilado a código nativo para Android e iOS. |
-| **Dart** | 3.x | Lenguaje tipado con *Sound Null Safety*, compilación AOT y recolección de basura eficiente. |
-| **dio** | `^5.7.0` | Cliente HTTP avanzado para comunicación con la API REST. |
-| **flutter_secure_storage** | `^9.2.2` | Almacenamiento cifrado en reposo para credenciales y tokens JWT. |
-| **flutter_bloc** | `^8.1.6` | Patrón de gestión de estado desacoplado, testeable y predecible. |
-| **google_maps_flutter** | `^2.10.0` | Integración con mapas vectoriales nativos para visualización geográfica. |
-| **geolocator** | `^13.0.1` | Acceso a sensores de GPS y gestión de permisos de ubicación en runtime. |
-| **image_picker** | `^1.1.2` | Captura de fotografías con la cámara del dispositivo o selección desde galería. |
-| **cached_network_image** | `^3.4.1` | Descarga, renderizado y almacenamiento en caché de imágenes en disco y memoria. |
-| **intl** | `^0.19.0` | Localización, formateo de fechas y números en español dominicano. |
-| **cupertino_icons** | `^1.0.8` | Iconografía nativa del ecosistema iOS para diseño adaptativo. |
-| **flutter_lints** | `^5.0.0` | Conjunto de reglas oficiales de análisis estático recomendadas por el equipo de Flutter. |
+flutter_bloc y cupertino_icons se retiraron por falta de uso. La implementación actual usa estado de widgets y notificadores compartidos; no debe describirse como una aplicación basada en BLoC.
 
----
+### Flujos implementados
 
-### 3.2 Justificación Técnica: ¿Por qué se eligió cada componente en Móvil?
+- Inicio con reportes, recientes, cerca de mí, populares e historial del autor.
+- Registro e ingreso por correo, Google y Apple, edición de perfil y seguimiento.
+- Sesión persistente: conserva credenciales al cerrar la app y renueva el acceso. Cerrar sesión, recuperar la contraseña o una revocación del servidor pueden invalidarla.
+- Creación con fotos y video, progreso de subida, cancelación y reintentos.
+- Carrusel horizontal de imágenes y video, reacciones y denuncias.
+- Mapa real: reportes propios en verde y ajenos en rojo.
+- Términos y política de privacidad disponibles desde la pantalla de ingreso.
 
-#### 1. Flutter en lugar de React Native, Kotlin Multiplatform o Desarrollo Nativo Puro
-* **Por qué:** Permite mantener una única base de código para Android e iOS con renderizado propio a 60/120 FPS (motores Skia e Impeller), eliminando la sobrecarga del puente de serialización JS de React Native clásico. Asegura que la apariencia visual y las animaciones sean idénticas en ambas plataformas.
+Dio permite concentrar autenticación y errores de red en ApiClient. El almacenamiento seguro evita guardar tokens como preferencias ordinarias, pero no garantiza invulnerabilidad en dispositivos comprometidos. La caché de imágenes reduce descargas repetidas; no elimina todo consumo de red ni asegura retención permanente.
 
-#### 2. `dio` en lugar del paquete básico `http` de Dart
-* **Por qué:**
-  * **Interceptores de Petición:** Permite adjuntar automáticamente el encabezado `Authorization: Bearer <token>` en todas las peticiones salientes sin repetir código.
-  * **Manejo Concurrente de Renovación (Mutex):** En `ApiClient`, cuando múltiples llamadas simultáneas devuelven error 401, Dio permite interceptar el error, poner en cola las peticiones, renovar el token una sola vez y reintentar automáticamente las solicitudes pendientes con el nuevo token.
-  * **Soporte Nativo Multipart/FormData:** Facilita la subida de fotografías de incidencias con streams de archivos sin saturar la memoria.
-  * **Timeouts Configurables:** Soporta `connectTimeout` y `receiveTimeout` independientes para detectar caídas de red rápidamente.
+## 4. Backend y datos
 
-#### 3. `flutter_secure_storage` en lugar de `shared_preferences`
-* **Por qué:** `shared_preferences` almacena los datos en archivos de texto plano XML (Android) o listas plist (iOS), totalmente legibles si el dispositivo es rooteado, liberado o mediante copias de seguridad. `flutter_secure_storage` utiliza **Android Keystore con `EncryptedSharedPreferences` (AES-256-GCM)** y **iOS Keychain con Secure Enclave**, garantizando que los tokens de sesión no puedan ser extraídos por aplicaciones maliciosas.
+### Dependencias actuales
 
-#### 4. `cached_network_image` en lugar de `Image.network` estándar
-* **Por qué:** `Image.network` descarga la imagen cada vez que el widget se reconstruye o sale de la vista, consumiendo el plan de datos del usuario y provocando parpadeos. `cached_network_image` almacena las imágenes en el almacenamiento temporal del dispositivo, reduce el consumo de red a cero tras la primera descarga, y permite limitar la resolución en memoria (`memCacheWidth`), evitando desbordamientos de memoria RAM al visualizar feeds con cientos de reportes con fotos.
+| Componente | Versión declarada | Función |
+| --- | --- | --- |
+| .NET / ASP.NET Core | net10.0 | API, controladores e inyección de dependencias. |
+| Microsoft.EntityFrameworkCore | 10.0.11 | Acceso a datos. |
+| Npgsql.EntityFrameworkCore.PostgreSQL | 10.0.3 | Proveedor PostgreSQL. |
+| Npgsql.EntityFrameworkCore.PostgreSQL.NetTopologySuite | 10.0.3 | Integración espacial del proveedor. |
+| NetTopologySuite | 2.6.0 | Tipos y operaciones geoespaciales. |
+| Microsoft.AspNetCore.Authentication.JwtBearer | 10.0.11 | Validación de tokens de acceso. |
+| BCrypt.Net-Next | 4.2.0 | Hash de contraseñas. |
+| Google.Apis.Auth | 1.77.0 | Validación de tokens de Google. |
+| SixLabors.ImageSharp | 3.1.12 | Procesamiento y eliminación de metadatos de imágenes. |
+| Microsoft.AspNetCore.OpenApi | 10.0.11 | Descripción de la API. |
+| Scalar.AspNetCore | 2.17.10 | Interfaz de documentación. |
 
-#### 5. `geolocator` con degradación manual
-* **Por qué:** Ofrece precisión de ubicación en tiempo real mediante satélites GPS y triangulación de antenas, gestionando el ciclo de vida de permisos en Android 14/15 e iOS 17+. En caso de que el usuario rechace el permiso, la app incluye un catálogo geográfico precargado de las 31 provincias y el Distrito Nacional para no bloquear la experiencia.
+No se utiliza ASP.NET Identity como sistema de cuentas: la autenticación se implementa en los servicios del proyecto. Las dependencias PostgreSQL ya no están declaradas como versiones preview.
 
-#### 6. Sistema de Diseño Rosé Pine y Rosé Pine Dawn
-* **Por qué:** Cumple con las pautas de accesibilidad **WCAG 2.1 nivel AA** con ratios de contraste superiores a 4.5:1. Dispone de variantes clara y oscura coherentes que reducen la fatiga visual nocturna sin perder jerarquía ni legibilidad.
+### Persistencia y ubicación
 
----
+Docker Compose utiliza PostgreSQL 16 con PostGIS 3.4 y el volumen persistente rdreporta_pgdata. Monta database/scripts/ para la inicialización de una base nueva. Las semillas de database/seeds/ son material de referencia y mantenimiento; no deben darse por ejecutadas automáticamente.
 
-## 4. Backend: .NET 10 y Clean Architecture
+Las consultas cercanas usan geometrías y operaciones espaciales del proveedor. La infraestructura espacial permite filtrar y ordenar por distancia; el rendimiento debe medirse con datos reales, sin asumir tiempos de respuesta específicos.
 
-### 4.1 Tecnologías y Librerías del Servidor
+### Multimedia
 
-| Componente | Versión | Rol en el Servidor |
-|---|---|---|
-| **.NET 10 (C# 13)** | `net10.0` | Runtime y lenguaje base de alto rendimiento y bajo consumo de memoria. |
-| **ASP.NET Core Web API** | 10.0 | Framework web para controladores REST, inyección de dependencias y middlewares. |
-| **Npgsql.EntityFrameworkCore.PostgreSQL** | `10.0.0-preview.5` | Proveedor oficial de Entity Framework Core para bases de datos PostgreSQL. |
-| **NetTopologySuite** | `10.0.0-preview.5` | Librería de tipos espaciales para manipulación de geometrías y cálculos geodésicos en PostGIS. |
-| **Microsoft.AspNetCore.Authentication.JwtBearer** | `10.0.0` | Middleware para validación y descifrado de tokens de autenticación JWT. |
-| **BCrypt.Net-Next** | `4.2.0` | Algoritmo de hashing adaptativo con sal para contraseñas de usuarios. |
-| **Microsoft.AspNetCore.RateLimiting** | Integrado en .NET | Middleware de protección contra abusos, ataques de fuerza bruta y saturación de endpoints. |
-| **Microsoft.AspNetCore.DataProtection** | Integrado en .NET | Cifrado y validación criptográfica de tokens temporales de recuperación de contraseñas. |
-| **Scalar.AspNetCore** | `2.17.10` | Interfaz interactiva de documentación OpenAPI moderna (alternativa a Swagger). |
+IStorageService está conectado a LocalStorageService. Los archivos se guardan en backend/src/RdReporta.Api/wwwroot/uploads/ y no se versionan en Git. No hay integración activa de S3, R2 o MinIO.
 
----
+Los videos se transfieren por bloques. La API contempla identificación del propietario, validación de bloques, reintentos e integridad. La app y la API comprueban un máximo de 3 minutos y 150 MiB; la API obtiene la duración del contenedor y rechaza archivos cuya duración no pueda verificarse. La presencia de estos controles no certifica la velocidad o estabilidad de cada conexión.
 
-### 4.2 Justificación Técnica: ¿Por qué se eligió esta arquitectura en Backend?
+Las imágenes se decodifican, orientan y vuelven a guardar sin metadatos EXIF, XMP e IPTC, con límites de resolución. La conservación y limpieza de archivos físicos tras eliminar una cuenta requiere revisión antes de un lanzamiento público.
 
-#### 1. .NET 10 y C# en lugar de Node.js, Python o Go
-* **Por qué:**
-  * **Rendimiento:** .NET es uno de los runtimes más veloces del mercado, superando ampliamente a Node.js y Python en operaciones de cálculo numérico, parseo JSON y rendimiento por vCPU.
-  * **Seguridad de Tipos y Escalabilidad:** El compilador de C# previene errores de tipado en tiempo de compilación. Su modelo de concurrencia basado en tareas asíncronas (`async/await`) permite manejar miles de peticiones simultáneas con consumo mínimo de hilos de sistema operativo.
+### Reacciones, vistas y popularidad
 
-#### 2. Clean Architecture (Separación en 4 Proyectos)
-La solución se encuentra estructurada siguiendo los principios de la Arquitectura Limpia:
-1. **`RdReporta.Domain`:** Entidades (`User`, `Post`, `Category`, `PostConfirmation`), enumeraciones y reglas de negocio puras. No tiene referencias a ningún paquete externo ni base de datos.
-2. **`RdReporta.Application`:** Interfaces de servicios, DTOs de entrada y salida, contratos de repositorio y lógica de orquestación.
-3. **`RdReporta.Infrastructure`:** Implementación de persistencia con Entity Framework Core, acceso a PostGIS, generación de hashes BCrypt, servicio de almacenamiento de archivos y configuración de base de datos.
-4. **`RdReporta.Api`:** Controladores REST, middlewares de excepción, rate limiting, configuración de autenticación JWT y documentación Scalar.
-* **Justificación:** Si en el futuro se decide cambiar PostgreSQL por otra base de datos o reemplazar el almacenamiento local por Amazon S3 / Azure Blob Storage, solo se modifica la capa de infraestructura sin alterar el dominio ni la lógica de aplicación.
+- Las vistas se registran mediante el flujo de impresiones; los clientes comparten el contador de un mismo reporte.
+- La API publica actualizaciones por SSE en /api/posts/views/live.
+- El distribuidor de eventos es local a una instancia; varias réplicas requieren un mecanismo compartido.
+- Popular esta semana consulta reportes activos de los últimos siete días y ordena por **reacciones × 2 + vistas × 0.1**, con desempate por fecha.
+- El estado de una publicación sigue existiendo para administración y visibilidad, aunque no se muestre una píldora de estado en la interfaz pública.
 
-#### 3. PostGIS y NetTopologySuite en lugar de latitud/longitud decimal simple
-* **Por qué:** Guardar `latitude` y `longitude` como números de punto flotante impide realizar consultas geoespaciales eficientes. Al usar el tipo nativo `Point` de NetTopologySuite indexado con **GiST (Generalized Search Tree)** en PostgreSQL:
-  * El cálculo de incidencias "Cerca de mí" se resuelve en milisegundos mediante la función nativa `ST_DWithin` sobre el elipsoide de la Tierra (WGS84 / SRID 4326).
-  * El filtrado por cuadrante del mapa (`minLat/maxLat`, `minLng/maxLng`) utiliza el operador espacial `&&` optimizado por hardware.
+## 5. Autenticación y controles de seguridad
 
-#### 4. BCrypt.Net-Next en lugar de SHA-256 o MD5
-* **Por qué:** SHA-256 es un algoritmo criptográfico ultrarrápido diseñado para verificación de integridad de datos; un atacante con tarjetas gráficas (GPUs) puede probar miles de millones de hashes por segundo. BCrypt es una función deliberadamente lenta (*key stretching*) con factor de coste configurable y sal aleatoria obligatoria, neutralizando ataques de fuerza bruta y tablas arcoíris (*rainbow tables*).
+- Tokens de acceso JWT y renovación mediante refresh tokens.
+- Refresh tokens almacenados como SHA-256 y rotados al renovar; contraseñas protegidas con BCrypt.
+- Configuración privada de Jwt:SecretKey y ConnectionStrings:DefaultConnection, sin valores de respaldo.
+- Límites de solicitudes globales y política de autenticación de 15 solicitudes por minuto por IP.
+- Comprobaciones de propiedad para archivos y operaciones sobre reportes.
+- Claves persistentes de ASP.NET Data Protection para los flujos que las utilizan.
+- HTTP de desarrollo separado de la configuración Android de release; producción requiere HTTPS.
+- Firma Android de producción con configuración privada, sin reutilizar automáticamente la firma debug.
 
-#### 5. Rate Limiting nativo en endpoints sensibles
-* **Por qué:** El endpoint `/api/auth/login` y `/api/auth/register` tiene configurada una política fija de **15 solicitudes por minuto por IP** (`PermitLimit = 15, Window = 1m`). Si un bot intenta adivinar contraseñas, el servidor responde inmediatamente con código HTTP 429 (`Too Many Requests`), protegiendo el CPU y la base de datos sin necesidad de dependencias externas.
+Estos controles reducen riesgos concretos. No constituyen una garantía absoluta de seguridad ni una certificación de auditoría completa.
 
-#### 6. Scalar en lugar de Swagger UI tradicional
-* **Por qué:** Swagger UI ha quedado desactualizado en diseño y velocidad. Scalar ofrece una experiencia moderna, modo oscuro por defecto, navegación fluida, generación interactiva de llamadas en múltiples lenguajes (cURL, C#, Dart, TypeScript) y cumplimiento nativo de la especificación OpenAPI 3.1 de .NET 10.
+## 6. Panel administrativo
 
----
+React 19, TypeScript ~6.0.2, Vite ^8.3.0, lucide-react ^1.48.0 y oxlint ^1.81.0.
 
-## 5. Base de Datos: PostgreSQL 16 + PostGIS 3.4
+La estructura actual incluye layouts, páginas, componentes y un cliente API. Contiene flujos de acceso, publicaciones, denuncias, categorías, usuarios y métricas. El cliente conserva la sesión del panel en sessionStorage; no se ha migrado a cookies HttpOnly.
 
-### 5.1 Justificación Técnica
-* **Motor Abierto y Estándar de la Industria:** PostgreSQL es el motor relacional de código abierto más robusto y conforme al estándar ANSI SQL.
-* **Extensión Espacial PostGIS:** Es el estándar de facto a nivel mundial para Sistemas de Información Geográfica (GIS). Permite indexación R-Tree, proyecciones geográficas, análisis de proximidad y clusters geoespaciales directamente en la base de datos.
-* **Semillas Geográficas Dominicanas:** La base de datos incluye un inicializador (`DbInitializer.cs`) con las 31 provincias y el Distrito Nacional, junto con categorías preconfiguradas con colores y nombres estandarizados.
-* **Contenerización con Docker Compose:** Se proporciona un archivo `docker-compose.yml` que levanta la base de datos con volúmenes persistentes (`rdreporta_pgdata`) y comprobaciones de salud automáticas (`pg_isready`).
+**Estado de compilación:** el último npm run build, durante la limpieza del 1 de octubre, falló por errores de ThemeSelector.tsx, importaciones que requieren import type y una importación de FormEvent sin uso. Esos archivos no se modificaron en la limpieza. El panel no debe describirse como listo para despliegue.
 
----
+React organiza la interfaz y TypeScript ayuda a detectar errores, pero sus tipos no validan por sí solos todos los datos recibidos en ejecución. No se afirman tiempos fijos de compilación ni comparaciones de velocidad sin mediciones actuales.
 
-## 6. Panel Administrativo Web: React 19, TypeScript y Vite
+## 7. Integraciones pendientes o parciales
 
-### 6.1 Tecnologías Utilizadas
+| Área | Implementado | Pendiente |
+| --- | --- | --- |
+| Google | Cliente y validación del token en el servidor. | Configuración final y prueba integral con el proveedor. |
+| Apple | Cliente móvil que llama a /auth/apple. | Endpoint de la API, validación del token y configuración del proveedor. |
+| Firebase/FCM | Inicialización y registro de tokens de dispositivos. | Envío remoto push y comprobación de recepción en segundo plano. |
+| Recuperación | Formularios, endpoints y protección del código. | SMTP configurado y entrega real de correos. |
+| Maps | Visualización con marcadores. | Selección de ubicación de un reporte tocando el mapa y validación de claves por plataforma. |
+| Archivos | Almacenamiento local y procesamiento de imágenes. | Proveedor remoto, política de retención y limpieza. |
+| Producción | Controles y configuración base. | Dominio, HTTPS, credenciales, firma final y validación Android/iOS. |
 
-| Herramienta | Versión | Rol en el Panel |
-|---|---|---|
-| **React** | `19.2.8` | Librería para interfaces web reactivas y declarativas. |
-| **TypeScript** | `~6.0.2` | Superset de JavaScript con tipado estático estricto. |
-| **Vite** | `^8.3.0` | Empaquetador y entorno de desarrollo frontend basado en Rollup y ES Modules. |
-| **lucide-react** | `^1.48.0` | Set de íconos vectoriales SVG optimizados para tree-shaking. |
-| **oxlint** | `^1.81.0` | Linter ultra-rápido desarrollado en Rust para verificación de código. |
+## 8. Revisión, pruebas y mantenimiento
 
----
+scripts/run_audit.ps1 reúne 11 comprobaciones locales y una adicional si se proporciona la dirección de la API. Incluye compilación, dependencias, controles de carga e imágenes, pruebas/análisis móvil y revisiones del panel. Es una herramienta para ejecutar una auditoría: su existencia no implica que el estado actual apruebe todos los controles.
 
-### 6.2 Justificación Técnica: ¿Por qué se eligió este stack en el Panel?
+scripts/check_admin.cjs navega el panel con respuestas API controladas y guarda capturas. No certifica la conexión real a PostgreSQL ni a proveedores externos.
 
-#### 1. React 19 y TypeScript en lugar de HTML/JS tradicional o Blazor
-* **Por qué:** El panel requiere una interfaz ágil, reactiva y modular para que moderadores y administradores gestionen cientos de incidencias, filtren por categorías, cambien estados y visualicen fotos sin recargar la página. TypeScript garantiza que los modelos de datos del panel coincidan exactamente con los contratos JSON del backend, evitando errores de propiedades indefinidas en tiempo de ejecución.
+**Evidencia reciente:**
 
-#### 2. Vite 8 en lugar de Create React App o Webpack
-* **Por qué:** Create React App está deprecado por el equipo oficial de React. Webpack presenta tiempos de compilación lentos en proyectos con muchos módulos. Vite compila la aplicación en modo producción en apenas **1.2 segundos** y ofrece Hot Module Replacement (HMR) casi instantáneo durante el desarrollo.
+- Tras la limpieza: flutter analyze --no-pub terminó sin problemas.
+- La compilación del administrador falló por los errores descritos anteriormente.
+- En la limpieza no se ejecutaron pruebas ni se recompiló el APK.
+- Las evidencias de auditorías anteriores están en AUDITORIA_Y_SEGURIDAD.md; no equivalen a una nueva ejecución sobre cada cambio.
+- No se afirma un número fijo de pruebas ni un “100 % aprobado” para el estado actual.
 
-#### 3. Oxlint en lugar de ESLint tradicional
-* **Por qué:** Desarrollado en Rust, Oxlint es entre 50 y 100 veces más rápido que ESLint. Permite verificar reglas de calidad, variables sin usar y posibles bugs de renderizado en milisegundos tanto en local como en pipelines de CI/CD.
+Se retiraron archivos desconectados y dependencias sin uso. El respaldo local de 20 archivos está en maintenance/archive/cleanup-2026-10-01.zip, excluido de Git; puede contener scripts administrativos y no debe publicarse. Las cachés y los datos de usuarios se conservaron.
 
----
+AGENTS.md y GEMINI.md contienen instrucciones para usar CodeGraph, limitar lecturas y evitar trabajo ajeno a la tarea.
 
-## 7. Automatización, Pruebas y Scripts
+## 9. Documentación relacionada
 
-### 7.1 Script de Auditoría Automatizada (`scripts/run_audit.ps1`)
-Script en PowerShell que orquesta la verificación completa del sistema en una sola ejecución:
-1. **Compilación Backend (.NET 10):** Valida que no existan errores de sintaxis o referencias rotas.
-2. **Escaneo de Vulnerabilidades NuGet:** Ejecuta `dotnet list package --vulnerable` e inspecciona el resultado JSON para detectar paquetes con fallos de seguridad conocidos.
-3. **Pruebas Automatizadas en Móvil (Flutter Test):** Corre 21 pruebas unitarias y de widgets (flujos de autenticación, renovación de tokens, prevención de overflows visuales y permisos).
-4. **Análisis Estático en Móvil (Flutter Analyze):** Valida que no haya violaciones a las directrices de código de Dart ni advertencias de tipo.
-5. **Compilación y Chequeo de Tipos en Admin (React + TypeScript):** Ejecuta `tsc -b && vite build` para garantizar que la web compile sin errores de tipado y genere el bundle listo para producción.
+- [README: ejecución y estado resumido](README.md).
+- [Configuración de servicios y producción](CONFIGURACION_SERVICIOS.md).
+- [Auditoría y seguridad](AUDITORIA_Y_SEGURIDAD.md).
+- [Inventario y limpieza de archivos](docs/AUDITORIA_ARCHIVOS_SIN_USO.md).
+- [Información del respaldo local](maintenance/README.md).
 
-### 7.2 Navegación Automatizada E2E (`scripts/check_admin.cjs`)
-Script en Node.js que simula la interacción de un usuario real sobre el panel administrativo en Chrome/Edge:
-* Verifica el formulario de inicio de sesión de administradores.
-* Comprueba la navegación, búsqueda y filtrado de incidencias.
-* Verifica el diálogo modal de moderación y la resolución de denuncias con notas.
-* Toma capturas de pantalla automáticas (`artifacts/admin-check/`) como evidencia de calidad visual.
-
----
-
-## 8. Matriz Comparativa: Resumen de Decisiones de Arquitectura
-
-| Área | Tecnología Seleccionada | Alternativa Descartada | Razón Técnica Decisiva |
-|---|---|---|---|
-| **Framework Móvil** | Flutter / Dart | React Native / Nativo Puro | Un solo codebase, renderizado propio a 60/120 FPS sin puente JS, comportamiento idéntico en iOS y Android. |
-| **Cliente HTTP Móvil** | Dio | `http` estándar de Dart | Interceptores automáticos de autenticación, renovación concurrente de tokens (Mutex) y subida de archivos multipart. |
-| **Almacenamiento Seguro** | `flutter_secure_storage` | `shared_preferences` | Cifrado por hardware con AES-256-GCM / Secure Enclave frente a archivos de texto plano desprotegidos. |
-| **Backend API** | .NET 10 (C#) | Node.js / Python | Rendimiento extremo, tipado estático en compilación, bajo consumo de recursos y soporte AOT. |
-| **Base de Datos** | PostgreSQL 16 + PostGIS | MySQL / MongoDB | Consultas geoespaciales nativas con indexación GiST (`ST_DWithin`) esenciales para radio de incidencias. |
-| **Hashing de Claves** | BCrypt.Net-Next | SHA-256 / MD5 | Función deliberadamente lenta resistente a ataques de fuerza bruta y ataques por GPU con sal automática. |
-| **Bundler Web Admin** | Vite 8 | Webpack / CRA | Compilación de producción en 1.2 segundos, arranque instantáneo y CRA oficialmente obsoleto. |
-| **Linter Web** | Oxlint (Rust) | ESLint | Análisis estático hasta 100 veces más veloz sin sobrecarga en pipelines de integración continua. |
-| **Docs API** | Scalar | Swagger UI | Interfaz moderna, tema visual oscuro integrado, navegación ligera y soporte nativo OpenAPI 3.1. |
-
----
-
-## 9. Estado Actual del Código y Verificación
-
-El proyecto cuenta con el **100% de las verificaciones aprobadas**:
-* **Backend:** Compila sin errores.
-* **Seguridad de dependencias:** 0 vulnerabilidades detectadas.
-* **Móvil:** 21 pruebas unitarias y de widgets aprobadas, 0 advertencias de análisis estático.
-* **Web Admin:** Compilación tipada y empaquetada lista para despliegue.
+INTEGRACIONES_Y_PENDIENTES.md conserva una revisión anterior con afirmaciones desactualizadas. Este resumen y el README describen el estado revisado del 1 de octubre; las futuras modificaciones deben reflejarse en estos documentos.

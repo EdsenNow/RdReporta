@@ -83,6 +83,7 @@ public interface IUserService
 {
     Task<ApiResponse<UserProfileDto>> GetProfileAsync(Guid userId, CancellationToken ct = default);
     Task<ApiResponse<UserProfileDto>> UpdateProfileAsync(Guid userId, UpdateProfileRequest request, CancellationToken ct = default);
+    Task<ApiResponse<bool>> DeleteAccountAsync(Guid userId, CancellationToken ct = default);
 }
 
 public class UserService : IUserService
@@ -98,7 +99,6 @@ public class UserService : IUserService
     {
         var user = await _context.Users
             .Include(u => u.Posts)
-                .ThenInclude(p => p.Confirmations)
             .FirstOrDefaultAsync(u => u.Id == userId, ct);
 
         if (user == null)
@@ -107,20 +107,17 @@ public class UserService : IUserService
         }
 
         int totalPosts = user.Posts.Count(p => p.Status != PostStatus.Hidden);
-        int totalConfirmations = user.Posts.Sum(p => p.Confirmations.Count);
 
         var dto = new UserProfileDto(
             user.Id,
             user.Username,
             string.IsNullOrWhiteSpace(user.DisplayName) ? user.Username : user.DisplayName,
-            user.Email,
             user.AvatarUrl,
             user.Province,
             user.Municipality,
             user.ReputationScore,
             user.ReputationLevel,
             totalPosts,
-            totalConfirmations,
             user.CreatedAt,
             user.UsernameChangedAt?.AddDays(15),
             user.IsVerified,
@@ -140,18 +137,28 @@ public class UserService : IUserService
             return ApiResponse<UserProfileDto>.Fail("Usuario no encontrado.");
         }
 
-        if (!string.IsNullOrWhiteSpace(request.AvatarUrl)) user.AvatarUrl = request.AvatarUrl.Trim();
+        if (!string.IsNullOrWhiteSpace(request.AvatarUrl))
+        {
+            var avatarUrl = request.AvatarUrl.Trim();
+            if (!RdReporta.Application.Common.UploadReference.IsOwned(avatarUrl, userId,
+                new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".webp" }))
+                return ApiResponse<UserProfileDto>.Fail("La foto de perfil debe ser una imagen subida por tu cuenta.");
+            user.AvatarUrl = avatarUrl;
+        }
         if (!string.IsNullOrWhiteSpace(request.DisplayName)) user.DisplayName = request.DisplayName.Trim();
         if (!string.IsNullOrWhiteSpace(request.Username))
         {
-            var username = request.Username.Trim();
-            if (!System.Text.RegularExpressions.Regex.IsMatch(username, "^[a-zA-Z0-9_]+$"))
+            var submittedUsername = request.Username.Trim();
+            if (!System.Text.RegularExpressions.Regex.IsMatch(submittedUsername, "^[a-zA-Z0-9_]+$"))
                 return ApiResponse<UserProfileDto>.Fail("El @usuario solo puede contener letras, números y guion bajo.");
 
-            if (!string.Equals(username, user.Username, StringComparison.OrdinalIgnoreCase))
+            var username = submittedUsername.ToLowerInvariant();
+            var sameUsernameIgnoringCase = string.Equals(
+                username, user.Username, StringComparison.OrdinalIgnoreCase);
+            if (!string.Equals(username, user.Username, StringComparison.Ordinal))
             {
                 var nextChange = user.UsernameChangedAt?.AddDays(15);
-                if (nextChange.HasValue && nextChange.Value > DateTime.UtcNow)
+                if (!sameUsernameIgnoringCase && nextChange.HasValue && nextChange.Value > DateTime.UtcNow)
                     return ApiResponse<UserProfileDto>.Fail($"Podrás cambiar tu @usuario nuevamente el {nextChange.Value:dd/MM/yyyy}.");
 
                 var normalized = username.ToLowerInvariant();
@@ -159,7 +166,8 @@ public class UserService : IUserService
                     return ApiResponse<UserProfileDto>.Fail("Ese @usuario ya está en uso.");
 
                 user.Username = username;
-                user.UsernameChangedAt = DateTime.UtcNow;
+                if (!sameUsernameIgnoringCase)
+                    user.UsernameChangedAt = DateTime.UtcNow;
             }
         }
         if (!string.IsNullOrWhiteSpace(request.Province)) user.Province = request.Province.Trim();
@@ -168,6 +176,66 @@ public class UserService : IUserService
 
         await _context.SaveChangesAsync(ct);
         return await GetProfileAsync(userId, ct);
+    }
+
+    public async Task<ApiResponse<bool>> DeleteAccountAsync(Guid userId, CancellationToken ct = default)
+    {
+        var user = await _context.Users
+            .Include(u => u.Posts)
+                .ThenInclude(p => p.Images)
+            .Include(u => u.Posts)
+                .ThenInclude(p => p.Reactions)
+            .Include(u => u.Posts)
+                .ThenInclude(p => p.ModerationReports)
+            .Include(u => u.Reactions)
+            .Include(u => u.ReportsSubmitted)
+            .Include(u => u.UserRoles)
+            .FirstOrDefaultAsync(u => u.Id == userId, ct);
+
+        if (user == null)
+        {
+            return ApiResponse<bool>.Fail("Usuario no encontrado.");
+        }
+
+        // 1. Delete all the user's posts and their children (images, reactions, moderation reports)
+        foreach (var post in user.Posts.ToList())
+        {
+            _context.PostImages.RemoveRange(post.Images);
+            _context.PostReactions.RemoveRange(post.Reactions);
+            _context.ModerationReports.RemoveRange(post.ModerationReports);
+            _context.Posts.Remove(post);
+        }
+
+        // 2. Delete the user's reactions on OTHER people's posts
+        _context.PostReactions.RemoveRange(user.Reactions);
+
+        // 3. Delete moderation reports submitted by this user (on other posts)
+        _context.ModerationReports.RemoveRange(user.ReportsSubmitted);
+
+        // 4. Delete follows (both directions)
+        var follows = await _context.UserFollows
+            .Where(f => f.FollowerId == userId || f.FollowedId == userId)
+            .ToListAsync(ct);
+        _context.UserFollows.RemoveRange(follows);
+
+        // 5. Delete notifications (received and sent as actor)
+        await _context.UserNotifications
+            .Where(n => n.UserId == userId || n.ActorUserId == userId)
+            .ExecuteDeleteAsync(ct);
+
+        // 6. Delete device registrations
+        await _context.DeviceRegistrations
+            .Where(d => d.UserId == userId)
+            .ExecuteDeleteAsync(ct);
+
+        // 7. Delete user roles
+        _context.UserRoles.RemoveRange(user.UserRoles);
+
+        // 8. Finally remove the user
+        _context.Users.Remove(user);
+
+        await _context.SaveChangesAsync(ct);
+        return ApiResponse<bool>.Ok(true, "Tu cuenta ha sido eliminada permanentemente.");
     }
 }
 

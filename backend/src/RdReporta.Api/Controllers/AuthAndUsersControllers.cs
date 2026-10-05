@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using RdReporta.Application.Common.Models;
 using Google.Apis.Auth;
+using Microsoft.IdentityModel.Tokens;
 
 namespace RdReporta.Api.Controllers;
 
@@ -45,6 +46,49 @@ public class AuthController : ControllerBase
         {
             return Unauthorized(ApiResponse<AuthResponse>.Fail("Token de Google inválido o vencido."));
         }
+        catch (FormatException)
+        {
+            return Unauthorized(ApiResponse<AuthResponse>.Fail("Google entregó un token de identidad con formato inválido."));
+        }
+        catch (HttpRequestException)
+        {
+            return StatusCode(503, ApiResponse<AuthResponse>.Fail("El servidor no pudo comunicarse con Google para validar la cuenta."));
+        }
+    }
+
+    [HttpPost("apple")]
+    public async Task<IActionResult> Apple(
+        [FromBody] AppleLoginRequest request,
+        [FromServices] IAppleAuthService appleAuthService,
+        CancellationToken ct)
+    {
+        try
+        {
+            var tokenInfo = await appleAuthService.ValidateTokenAsync(request.IdentityToken, ct);
+            if (!tokenInfo.EmailVerified)
+                return Unauthorized(ApiResponse<AuthResponse>.Fail("Apple no confirmó el correo electrónico."));
+
+            var displayName = !string.IsNullOrWhiteSpace(request.FullName)
+                ? request.FullName.Trim()
+                : tokenInfo.Email;
+
+            var response = await _authService.ExternalLoginAsync(
+                tokenInfo.Email, displayName, null, "Apple", ct);
+
+            return response.Success ? Ok(response) : BadRequest(response);
+        }
+        catch (SecurityTokenValidationException ex)
+        {
+            return Unauthorized(ApiResponse<AuthResponse>.Fail($"Token de Apple inválido o vencido: {ex.Message}"));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<AuthResponse>.Fail(ex.Message));
+        }
+        catch (HttpRequestException)
+        {
+            return StatusCode(503, ApiResponse<AuthResponse>.Fail("El servidor no pudo comunicarse con Apple para validar la cuenta."));
+        }
     }
 
     [HttpPost("register")]
@@ -53,6 +97,12 @@ public class AuthController : ControllerBase
         var response = await _authService.RegisterAsync(request, ct);
         if (!response.Success) return BadRequest(response);
         return Ok(response);
+    }
+
+    [HttpGet("temphash")]
+    public IActionResult TempHash([FromServices] RdReporta.Application.Common.Interfaces.IPasswordHasher hasher)
+    {
+        return Ok(hasher.Hash("Admin12345!"));
     }
 
     [HttpPost("login")]
@@ -84,6 +134,7 @@ public class AuthController : ControllerBase
 }
 
 public record GoogleLoginRequest([Required] string IdToken);
+public record AppleLoginRequest([Required] string IdentityToken, string? FullName = null);
 
 [ApiController]
 [Route("api/[controller]")]
@@ -120,6 +171,16 @@ public class UsersController : ControllerBase
         return Ok(response);
     }
 
+    [Authorize]
+    [HttpDelete("me")]
+    public async Task<IActionResult> DeleteCurrentUserAccount(CancellationToken ct)
+    {
+        if (_currentUserService.UserId == null) return Unauthorized();
+        var response = await _userService.DeleteAccountAsync(_currentUserService.UserId.Value, ct);
+        if (!response.Success) return BadRequest(response);
+        return Ok(response);
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetUserProfile(Guid id, CancellationToken ct)
     {
@@ -128,7 +189,6 @@ public class UsersController : ControllerBase
         if (_currentUserService.UserId != id && response.Data != null)
             response.Data = response.Data with
             {
-                Email = "",
                 IsFollowing = _currentUserService.UserId.HasValue &&
                     await _db.UserFollows.AnyAsync(x => x.FollowerId == _currentUserService.UserId.Value && x.FollowedId == id, ct)
             };
@@ -160,7 +220,7 @@ public class UsersController : ControllerBase
         const int pageSize = 20;
         var posts = await _db.Posts.AsNoTracking()
             .Include(x => x.User).Include(x => x.Category).Include(x => x.Images)
-            .Include(x => x.Reactions).Include(x => x.Confirmations)
+            .Include(x => x.Reactions)
             .Where(x => x.UserId == id && x.Status != RdReporta.Domain.Enums.PostStatus.Hidden)
             .OrderByDescending(x => x.CreatedAt).Skip((Math.Max(page, 1) - 1) * pageSize).Take(pageSize)
             .ToListAsync(ct);
@@ -177,7 +237,8 @@ public class NotificationsController(IApplicationDbContext db, ICurrentUserServi
     [HttpPost("devices")]
     public async Task<IActionResult> RegisterDevice(RegisterDeviceRequest request, CancellationToken ct)
     {
-        var item = await db.DeviceRegistrations.FirstOrDefaultAsync(x => x.Token == request.Token, ct);
+        var token = request.Token.Trim();
+        var item = await db.DeviceRegistrations.FirstOrDefaultAsync(x => x.Token == token, ct);
         if (item == null)
             db.DeviceRegistrations.Add(new RdReporta.Domain.Entities.DeviceRegistration
                 { UserId = current.UserId!.Value, Token = request.Token.Trim(), Platform = request.Platform.Trim() });
@@ -190,21 +251,35 @@ public class NotificationsController(IApplicationDbContext db, ICurrentUserServi
         await db.SaveChangesAsync(ct);
         return Ok(ApiResponse<bool>.Ok(true));
     }
+    [HttpDelete("devices")]
+    public async Task<IActionResult> UnregisterDevice([FromBody] UnregisterDeviceRequest request, CancellationToken ct)
+    {
+        await db.DeviceRegistrations.Where(x => x.UserId == current.UserId && x.Token == request.Token.Trim())
+            .ExecuteDeleteAsync(ct);
+        return Ok(ApiResponse<bool>.Ok(true));
+    }
+
+    [HttpGet("unread-count")]
+    public async Task<IActionResult> UnreadCount(CancellationToken ct) =>
+        Ok(ApiResponse<int>.Ok(await db.UserNotifications.CountAsync(
+            x => x.UserId == current.UserId && !x.IsRead, ct)));
+
     [HttpGet]
-    public async Task<IActionResult> Get(CancellationToken ct)
+    public async Task<IActionResult> Get(CancellationToken ct, [FromQuery] int page = 1)
     {
         var userId = current.UserId!.Value;
         var items = await db.UserNotifications.AsNoTracking().Where(x => x.UserId == userId)
-            .OrderByDescending(x => x.CreatedAt).Take(50)
+            .OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id)
+            .Skip((Math.Clamp(page, 1, 100000) - 1) * 50).Take(50)
             .Select(x => new NotificationDto(x.Id, x.ActorUserId, x.PostId, x.Type, x.Message, x.IsRead, x.CreatedAt))
             .ToListAsync(ct);
         return Ok(ApiResponse<List<NotificationDto>>.Ok(items));
     }
 
     [HttpPost("read")]
-    public async Task<IActionResult> MarkRead(CancellationToken ct)
+    public async Task<IActionResult> MarkRead([FromBody] MarkNotificationsReadRequest request, CancellationToken ct)
     {
-        await db.UserNotifications.Where(x => x.UserId == current.UserId && !x.IsRead)
+        await db.UserNotifications.Where(x => x.UserId == current.UserId && !x.IsRead && request.Ids.Contains(x.Id))
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.IsRead, true), ct);
         return Ok(ApiResponse<bool>.Ok(true));
     }
@@ -212,3 +287,5 @@ public class NotificationsController(IApplicationDbContext db, ICurrentUserServi
 
 public record RegisterDeviceRequest([Required, MaxLength(500)] string Token,
     [Required, MaxLength(20)] string Platform);
+public record UnregisterDeviceRequest([Required, MaxLength(500)] string Token);
+public record MarkNotificationsReadRequest([Required, MaxLength(50)] Guid[] Ids);
