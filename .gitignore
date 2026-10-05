@@ -66,6 +66,8 @@ out/
 .cache/
 
 # --- Flutter & Dart ---
+*.apk
+*.aab
 .dart_tool/
 .packages
 .pub-cache/
