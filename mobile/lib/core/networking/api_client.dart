@@ -208,9 +208,11 @@ class ApiClient {
               defaultTargetPlatform == TargetPlatform.android) {
             request.extra['fallback_host_tried'] = true;
             final currentBase = _dio.options.baseUrl;
-            final altBase = currentBase.contains('127.0.0.1')
-                ? currentBase.replaceFirst('127.0.0.1', '10.0.2.2')
-                : currentBase.replaceFirst('10.0.2.2', '127.0.0.1');
+            final altBase = currentBase.contains('192.168.100.211')
+                ? currentBase.replaceFirst('192.168.100.211', '127.0.0.1')
+                : (currentBase.contains('127.0.0.1')
+                    ? currentBase.replaceFirst('127.0.0.1', '192.168.100.211')
+                    : currentBase.replaceFirst('10.0.2.2', '192.168.100.211'));
             if (altBase != currentBase) {
               _dio.options.baseUrl = altBase;
               request.baseUrl = altBase;

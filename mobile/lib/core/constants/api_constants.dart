@@ -8,7 +8,7 @@ class ApiConstants {
       return configured.replaceFirst(RegExp(r'/$'), '');
     }
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://127.0.0.1:5000/api';
+      return 'http://192.168.100.211:5000/api';
     } else {
       return 'http://localhost:5000/api';
     }

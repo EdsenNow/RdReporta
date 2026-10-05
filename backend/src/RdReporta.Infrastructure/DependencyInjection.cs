@@ -13,12 +13,15 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        var connectionString = configuration.GetConnectionString("DefaultConnection")
+            ?? configuration["DATABASE_URL"];
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             throw new InvalidOperationException(
-                "ConnectionStrings:DefaultConnection debe configurarse fuera del repositorio.");
+                "ConnectionStrings:DefaultConnection o DATABASE_URL debe configurarse fuera del repositorio.");
         }
+
+        connectionString = NormalizeConnectionString(connectionString);
 
         services.AddDbContext<ApplicationDbContext>(options =>
         {
@@ -60,5 +63,21 @@ public static class DependencyInjection
         services.AddScoped<IModerationService, ModerationService>();
 
         return services;
+    }
+
+    private static string NormalizeConnectionString(string raw)
+    {
+        if (raw.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
+            raw.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+        {
+            var uri = new Uri(raw);
+            var userInfo = uri.UserInfo.Split(':', 2);
+            var username = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : "postgres";
+            var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "";
+            var database = uri.AbsolutePath.TrimStart('/');
+            var port = uri.Port > 0 ? uri.Port : 5432;
+            return $"Host={uri.Host};Port={port};Database={database};Username={username};Password={password};SSL Mode=Prefer;Trust Server Certificate=true";
+        }
+        return raw;
     }
 }

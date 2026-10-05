@@ -164,7 +164,14 @@ using (var scope = app.Services.CreateScope())
 }
 
 // 7. Middlewares pipeline
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto
+});
+
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
 
 if (app.Environment.IsDevelopment())
 {

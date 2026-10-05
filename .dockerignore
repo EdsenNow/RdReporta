@@ -1,0 +1,15 @@
+.git
+.github
+mobile/
+admin/
+docs/
+database/
+docker/
+*.md
+**/bin/
+**/obj/
+**/.vs/
+**/.vscode/
+**/wwwroot/uploads/**
+**/pgdata/**
+**/.gradle/**
