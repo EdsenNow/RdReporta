@@ -8,6 +8,8 @@ RDReporta es una plataforma ciudadana para registrar y consultar incidencias com
 
 La versión más reciente y sus notas están disponibles en [GitHub Releases](https://github.com/EdsenNow/RdReporta/releases).
 
+Actualmente disponible para Android. **Próximamente para iOS.**
+
 > Android puede solicitar autorización para instalar aplicaciones provenientes del navegador o del explorador de archivos.
 
 ## Funciones principales
