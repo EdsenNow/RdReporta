@@ -8,9 +8,9 @@ class LegalDocumentScreen extends StatelessWidget {
   final LegalDocument document;
 
   static const _operator = String.fromEnvironment('LEGAL_OPERATOR_NAME',
-      defaultValue: 'Andy Henriquez Luciano');
+      defaultValue: 'Equipo RDReporta');
   static const _contact = String.fromEnvironment('LEGAL_CONTACT_EMAIL',
-      defaultValue: 'edsennow@outlook.com');
+      defaultValue: 'privacidad@rdreporta.com');
 
   static const _terms = [
     (
