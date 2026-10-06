@@ -140,8 +140,9 @@ public class UserService : IUserService
         if (!string.IsNullOrWhiteSpace(request.AvatarUrl))
         {
             var avatarUrl = request.AvatarUrl.Trim();
-            if (!RdReporta.Application.Common.UploadReference.IsOwned(avatarUrl, userId,
-                new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".webp" }))
+            if (!string.Equals(avatarUrl, user.AvatarUrl, StringComparison.OrdinalIgnoreCase) &&
+                !RdReporta.Application.Common.UploadReference.IsOwned(avatarUrl, userId,
+                    new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".webp" }))
                 return ApiResponse<UserProfileDto>.Fail("La foto de perfil debe ser una imagen subida por tu cuenta.");
             user.AvatarUrl = avatarUrl;
         }

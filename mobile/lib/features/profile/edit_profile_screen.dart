@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../core/networking/api_client.dart';
 import '../../shared/models/models.dart';
@@ -5,6 +6,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/constants/provinces.dart';
 import '../../core/constants/api_constants.dart';
 import 'package:image_picker/image_picker.dart';
+import 'avatar_crop_screen.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final UserModel user;
@@ -47,16 +49,66 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Future<void> _changeAvatar() async {
     if (_avatarBusy) return;
+
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: context.surfaceColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: ctx.mutedColor.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              ListTile(
+                leading: Icon(Icons.photo_library_outlined, color: ctx.textPrimaryColor),
+                title: Text('Elegir de la galería',
+                    style: TextStyle(color: ctx.textPrimaryColor, fontWeight: FontWeight.w600)),
+                onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              ),
+              ListTile(
+                leading: Icon(Icons.camera_alt_outlined, color: ctx.textPrimaryColor),
+                title: Text('Tomar foto con la cámara',
+                    style: TextStyle(color: ctx.textPrimaryColor, fontWeight: FontWeight.w600)),
+                onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (source == null || !mounted) return;
+
     final image = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 82,
-      maxWidth: 1200,
-      maxHeight: 1200,
+      source: source,
+      maxWidth: 2048,
+      maxHeight: 2048,
     );
     if (image == null || !mounted) return;
+
+    final croppedFile = await Navigator.push<File?>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AvatarCropScreen(imageFile: File(image.path)),
+      ),
+    );
+    if (croppedFile == null || !mounted) return;
+
     setState(() => _avatarBusy = true);
     try {
-      final url = await ApiClient().uploadImage(image.path);
+      final url = await ApiClient().uploadImage(croppedFile.path);
       if (url == null) throw Exception('No se pudo subir la imagen.');
       await ApiClient().updateProfile(avatarUrl: url);
       if (mounted) setState(() => _avatarUrlValue = url);

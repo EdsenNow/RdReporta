@@ -7,7 +7,13 @@ public static class UploadReference
         if (string.IsNullOrWhiteSpace(url)) return false;
 
         string fileName;
-        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        if (url.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase))
+        {
+            if (url.Contains('?') || url.Contains('#')) return false;
+            fileName = Path.GetFileName(url);
+            if (url != $"/uploads/{fileName}") return false;
+        }
+        else if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
         {
             if (!uri.Scheme.Equals("http", StringComparison.OrdinalIgnoreCase) &&
                 !uri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
@@ -21,8 +27,7 @@ public static class UploadReference
         }
         else
         {
-            fileName = Path.GetFileName(url);
-            if (url != $"/uploads/{fileName}") return false;
+            return false;
         }
 
         if (!fileName.StartsWith($"{ownerId:N}_", StringComparison.OrdinalIgnoreCase))
