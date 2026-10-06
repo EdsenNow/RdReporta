@@ -23,6 +23,7 @@ secrets.json
 *credentials*.json
 *service-account*.json
 firebase-adminsdk*.json
+railway.json
 *.jks
 *.keystore
 *.p8
